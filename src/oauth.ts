@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import type { Response } from "express";
 import { jwtVerify } from "jose";
 import type {
@@ -22,9 +24,30 @@ interface StoredCode {
   expiresAt: number;
 }
 
-/** In-memory OAuth client registry (Dynamic Client Registration, POC-grade). */
-class InMemoryClientsStore implements OAuthRegisteredClientsStore {
+/**
+ * File-backed OAuth client registry (Dynamic Client Registration). Registrations
+ * are persisted to disk so they survive server restarts and redeploys — otherwise
+ * every previously-registered client (Claude, etc.) breaks with `invalid_client`
+ * on the next connection. For multi-instance deployments, back this with a shared
+ * store (DB/Redis) so all instances see the same registrations.
+ */
+class FileClientsStore implements OAuthRegisteredClientsStore {
   private clients = new Map<string, OAuthClientInformationFull>();
+
+  constructor(private readonly filePath: string) {
+    try {
+      const raw = readFileSync(this.filePath, "utf8");
+      const entries = JSON.parse(raw) as OAuthClientInformationFull[];
+      for (const client of entries) this.clients.set(client.client_id, client);
+    } catch {
+      // No file yet (first run) or unreadable — start empty.
+    }
+  }
+
+  private persist() {
+    mkdirSync(dirname(this.filePath), { recursive: true });
+    writeFileSync(this.filePath, JSON.stringify([...this.clients.values()], null, 2));
+  }
 
   getClient(clientId: string) {
     return this.clients.get(clientId);
@@ -42,6 +65,7 @@ class InMemoryClientsStore implements OAuthRegisteredClientsStore {
       client_id_issued_at: Math.floor(Date.now() / 1000),
     };
     this.clients.set(full.client_id, full);
+    this.persist();
     return full;
   }
 }
@@ -53,13 +77,16 @@ class InMemoryClientsStore implements OAuthRegisteredClientsStore {
  * scoped to that user by the backend.
  */
 export class ZyroOAuthProvider implements OAuthServerProvider {
-  readonly clientsStore = new InMemoryClientsStore();
+  readonly clientsStore: FileClientsStore;
   private codes = new Map<string, StoredCode>();
 
   constructor(
     private readonly jwtSecret: Uint8Array,
     private readonly consentUrl: string,
-  ) {}
+    clientsStorePath: string,
+  ) {
+    this.clientsStore = new FileClientsStore(clientsStorePath);
+  }
 
   /**
    * Step 1: hand off to the frontend consent page, forwarding the OAuth request

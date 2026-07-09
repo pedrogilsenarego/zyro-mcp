@@ -9,6 +9,8 @@ export interface Config {
   jwtSecret: string;
   /** Frontend page that renders the login + consent UI (the real app). */
   consentUrl: string;
+  /** File where registered OAuth clients are persisted across restarts. */
+  clientsStorePath: string;
 }
 
 export function loadConfig(): Config {
@@ -36,5 +38,8 @@ export function loadConfig(): Config {
     process.env.FRONTEND_CONSENT_URL || "http://localhost:3000/oauth-consent"
   ).replace(/\/+$/, "");
 
-  return { apiBaseUrl, publicUrl, port, jwtSecret, consentUrl };
+  const clientsStorePath =
+    process.env.OAUTH_CLIENTS_PATH || "./data/oauth-clients.json";
+
+  return { apiBaseUrl, publicUrl, port, jwtSecret, consentUrl, clientsStorePath };
 }

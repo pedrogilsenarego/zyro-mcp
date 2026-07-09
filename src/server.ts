@@ -13,6 +13,7 @@ const api = new ImocertoApi(config.apiBaseUrl);
 const provider = new ZyroOAuthProvider(
   new TextEncoder().encode(config.jwtSecret),
   config.consentUrl,
+  config.clientsStorePath,
 );
 
 const app = express();
