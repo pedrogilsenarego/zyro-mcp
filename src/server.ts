@@ -3,12 +3,12 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { loadConfig } from "./config.js";
-import { ImocertoApi } from "./imocerto.js";
+import { BackendClient } from "./backend/client.js";
 import { ZyroOAuthProvider } from "./oauth.js";
 import { createMcpServer } from "./mcp.js";
 
 const config = loadConfig();
-const api = new ImocertoApi(config.apiBaseUrl);
+const backend = new BackendClient(config.apiBaseUrl);
 
 const provider = new ZyroOAuthProvider(
   new TextEncoder().encode(config.jwtSecret),
@@ -61,7 +61,11 @@ app.post(
   requireBearerAuth({ verifier: provider }),
   async (req, res) => {
     const accessToken = req.auth?.token;
-    const server = createMcpServer(api, () => accessToken);
+    const userId = req.auth?.extra?.userId as string | undefined;
+    const server = createMcpServer(backend, {
+      getAccessToken: () => accessToken,
+      getUserId: () => userId,
+    });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
