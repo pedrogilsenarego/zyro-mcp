@@ -46,6 +46,50 @@ export function registerListingTools(
   );
 
   server.tool(
+    "list_listings",
+    "List the authenticated user's own (and shared-with) listings, including " +
+      "drafts and inactive ones. Returns a curated summary per listing (id, " +
+      "reference, title, status, type, price). Use the returned id for " +
+      "get_listing / update_listing / delete_listing.",
+    {},
+    async () => {
+      const token = deps.getAccessToken();
+      const userId = deps.getUserId();
+      if (!token || !userId) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "Not authenticated." }],
+        };
+      }
+
+      const result = await api.listMyListings(userId, token);
+      if (!result.ok) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Could not fetch listings (status ${result.status}): ${result.body}`,
+            },
+          ],
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${result.listings.length} listing(s):\n${JSON.stringify(
+              result.listings,
+              null,
+              2,
+            )}`,
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
     "delete_listing",
     "Delete one of the authenticated user's listings by id. The id comes from a " +
       "prior create_listing result or a listing lookup — never guess it.",
