@@ -10,11 +10,9 @@ import { createMcpServer } from "./mcp.js";
 const config = loadConfig();
 const api = new ImocertoApi(config.apiBaseUrl);
 
-const LOGIN_CALLBACK_PATH = "/oauth/login-callback";
 const provider = new ZyroOAuthProvider(
-  api,
   new TextEncoder().encode(config.jwtSecret),
-  LOGIN_CALLBACK_PATH,
+  config.consentUrl,
 );
 
 const app = express();
@@ -25,21 +23,21 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "zyro-mcp", apiBaseUrl: config.apiBaseUrl });
 });
 
-// Handles the login/consent form submit: authenticate against imocerto, then
-// redirect back to the MCP client with an authorization code.
-app.post(LOGIN_CALLBACK_PATH, async (req, res) => {
+// The frontend consent page posts here after the user logs in and approves,
+// handing back their imocerto access token. We mint an authorization code and
+// redirect the browser back to the MCP client.
+app.post("/oauth/consent-callback", async (req, res) => {
   const fields = {
     clientId: String(req.body.client_id ?? ""),
     redirectUri: String(req.body.redirect_uri ?? ""),
     state: String(req.body.state ?? ""),
     codeChallenge: String(req.body.code_challenge ?? ""),
-    email: String(req.body.email ?? ""),
-    password: String(req.body.password ?? ""),
+    accessToken: String(req.body.access_token ?? ""),
   };
 
-  const redirectTo = await provider.completeLogin(fields);
+  const redirectTo = await provider.completeConsent(fields);
   if (!redirectTo) {
-    res.status(401).type("html").send(provider.renderLoginError(fields));
+    res.status(400).json({ error: "Invalid consent request" });
     return;
   }
   res.redirect(redirectTo);

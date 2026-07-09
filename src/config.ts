@@ -7,10 +7,12 @@ export interface Config {
   port: number;
   /** Shared secret used to verify imocerto access-token JWTs (HS256). */
   jwtSecret: string;
+  /** Frontend page that renders the login + consent UI (the real app). */
+  consentUrl: string;
 }
 
 export function loadConfig(): Config {
-  const port = process.env.PORT ? Number(process.env.PORT) : 8787;
+  const port = process.env.PORT ? Number(process.env.PORT) : 8080;
   if (!Number.isFinite(port)) throw new Error(`Invalid PORT: ${process.env.PORT}`);
 
   const apiBaseUrl = (
@@ -28,5 +30,11 @@ export function loadConfig(): Config {
     );
   }
 
-  return { apiBaseUrl, publicUrl, port, jwtSecret };
+  // Locale-less: the frontend resolves the user's language and forwards to the
+  // localized consent page.
+  const consentUrl = (
+    process.env.FRONTEND_CONSENT_URL || "http://localhost:3000/oauth-consent"
+  ).replace(/\/+$/, "");
+
+  return { apiBaseUrl, publicUrl, port, jwtSecret, consentUrl };
 }

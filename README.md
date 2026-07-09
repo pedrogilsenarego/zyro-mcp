@@ -30,7 +30,7 @@ runs on localhost (no hosting yet).
 
     pnpm install
     cp .env.example .env      # set IMOCERTO_JWT_SECRET to match the backend's
-    pnpm dev                  # http://localhost:8787
+    pnpm dev                  # http://localhost:8080
 
 `IMOCERTO_JWT_SECRET` must equal the backend's `JWT_SECRET` so this server can
 verify the tokens it issues. Make sure the imocerto backend is running on
@@ -38,7 +38,7 @@ verify the tokens it issues. Make sure the imocerto backend is running on
 
 ## Connect from Claude Code
 
-    claude mcp add --transport http zyro http://localhost:8787/mcp
+    claude mcp add --transport http zyro http://localhost:8080/mcp
 
 Claude discovers the OAuth metadata, opens the login/consent page in your
 browser, you log in with your imocerto credentials and approve — done. Then:
