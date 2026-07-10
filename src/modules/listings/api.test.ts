@@ -137,6 +137,23 @@ test("createListing encodes optional fields (arrays JSON-stringified, dates, boo
   assert.equal(form.get("deposit"), "345");
 });
 
+test("updateListing sends a JSON PATCH with only the provided fields", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 200, body: "{}" });
+  const api = new ListingsApi(client);
+
+  await api.updateListing("a b/c", { rentPrice: 500, deposit: null }, "tok");
+
+  assert.equal(calls[0].path, "/listing/a%20b%2Fc");
+  assert.equal(calls[0].opts.method, "PATCH");
+  assert.equal(calls[0].opts.accessToken, "tok");
+  assert.equal(calls[0].opts.headers["Content-Type"], "application/json");
+
+  const sent = JSON.parse(calls[0].opts.body);
+  assert.deepEqual(sent, { rentPrice: 500, deposit: null });
+  // Omitted fields must not be sent (would overwrite BE state).
+  assert.ok(!("title" in sent));
+});
+
 test("deleteListing issues DELETE to the url-encoded listing path", async () => {
   const { client, calls } = capturingClient({ ok: true, status: 200, body: "" });
   const api = new ListingsApi(client);

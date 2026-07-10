@@ -26,6 +26,18 @@ export interface CreateListingInput {
   deposit?: number;
 }
 
+// Every field optional — a PATCH only sends what changes. The BE strips
+// id/userId itself and enforces edit access before applying the update.
+export interface UpdateListingInput {
+  title?: string;
+  rentPrice?: number;
+  salePrice?: number;
+  availableFrom?: string | null;
+  roomFeatures?: string[];
+  smokingAllowed?: boolean;
+  deposit?: number | null;
+}
+
 export interface ListingSummary {
   id: string;
   reference: string | null;
@@ -61,6 +73,24 @@ export class ListingsApi {
       accessToken,
       body: form,
     });
+  }
+
+  updateListing(
+    listingId: string,
+    input: UpdateListingInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    // BE reads this as JSON (c.req.json()), so send a JSON body — not the
+    // multipart form createListing uses.
+    return this.client.request(
+      `/listing/${encodeURIComponent(listingId)}`,
+      {
+        method: "PATCH",
+        accessToken,
+        body: JSON.stringify(input),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   deleteListing(
