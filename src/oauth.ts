@@ -26,7 +26,7 @@ interface StoredCode {
 
 // File-backed client registry so registrations survive restarts (else clients
 // break with `invalid_client`). Use a shared store for multi-instance deploys.
-class FileClientsStore implements OAuthRegisteredClientsStore {
+export class FileClientsStore implements OAuthRegisteredClientsStore {
   private clients = new Map<string, OAuthClientInformationFull>();
 
   constructor(private readonly filePath: string) {
