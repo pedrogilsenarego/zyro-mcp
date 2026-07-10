@@ -8,6 +8,12 @@ import {
   type UpdateListingInput,
 } from "./api.js";
 
+// The backend supports more business types (sale, rent, auction), but the app UI
+// currently only lets users create room rentals. This tool mirrors that product
+// surface — widen this list (and propertyType/listingType) when the UI ships the
+// others; no backend change is needed for that.
+const SUPPORTED_BUSINESS_TYPES = ["roomRent"] as const;
+
 export function registerListingTools(
   server: McpServer,
   api: ListingsApi,
@@ -15,13 +21,30 @@ export function registerListingTools(
 ): void {
   server.tool(
     "create_listing",
-    "Create a real-estate listing in Zyr-o / imocerto as the authenticated user.",
+    "Create a room-rental listing in Zyr-o / imocerto as the authenticated user. " +
+      "This tool currently only creates ROOM RENTALS, mirroring the app UI: a " +
+      "listing either offers a room to rent (listingType 'supply') or seeks one " +
+      "('demand'). Selling or renting out a whole house/apartment is not yet " +
+      "exposed here — if the user asks for that, tell them only room-rental " +
+      "listings can be created for now instead of guessing a businessType.",
     {
       title: z.string().min(1),
-      rentPrice: z.number().positive().describe("Monthly rent / price in EUR."),
-      propertyType: z.string().describe("e.g. 'apartment', 'house', 'room'."),
-      businessType: z.string().describe("e.g. 'roomRent' or 'buy'."),
-      listingType: z.enum(["supply", "demand"]).optional(),
+      rentPrice: z.number().positive().describe("Monthly rent in EUR."),
+      propertyType: z
+        .enum(["room", "apartment", "house"])
+        .describe("The property the rented room is in."),
+      businessType: z
+        .enum(SUPPORTED_BUSINESS_TYPES)
+        .describe(
+          "Only room rental is exposed for now. Whole-property sale or rent is " +
+            "not yet available via this tool — do not pass 'sale', 'rent' or 'buy'.",
+        ),
+      listingType: z
+        .enum(["supply", "demand"])
+        .optional()
+        .describe(
+          "'supply' = offering a room to rent; 'demand' = looking for a room to rent.",
+        ),
       availableFrom: z
         .string()
         .optional()

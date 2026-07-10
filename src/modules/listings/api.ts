@@ -17,8 +17,8 @@ export const LISTING_SOURCE_FIELDS = [
 export interface CreateListingInput {
   title: string;
   rentPrice: number;
-  propertyType: string;
-  businessType: string;
+  propertyType: "room" | "apartment" | "house";
+  businessType: "roomRent";
   listingType?: "supply" | "demand";
   availableFrom?: string;
   roomFeatures?: string[];
