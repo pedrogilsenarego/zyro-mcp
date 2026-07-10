@@ -1,4 +1,12 @@
 import type { BackendClient, BackendResult } from "../../backend/client.js";
+import type {
+  CreateListingBase,
+  CreateListingInput,
+  HouseFeatureKey,
+  RoomFeatureKey,
+} from "../../generated/contracts.js";
+
+export type { CreateListingInput };
 
 // Raw BE fields toSummaries reads; the contract test asserts they still exist.
 export const LISTING_SOURCE_FIELDS = [
@@ -14,31 +22,25 @@ export const LISTING_SOURCE_FIELDS = [
   "createdAt",
 ] as const;
 
-export interface CreateListingInput {
-  title: string;
-  rentPrice: number;
-  propertyType: "room" | "apartment" | "house";
-  businessType: "roomRent";
+export type CreateListingArgs = CreateListingBase & {
   listingType?: "supply" | "demand";
-  availableFrom?: string;
-  roomFeatures?: string[];
-  smokingAllowed?: boolean;
-  deposit?: number;
-}
+  location?: string;
+};
 
 // Every field optional — a PATCH only sends what changes. The BE strips
 // id/userId itself and enforces edit access before applying the update.
-export interface UpdateListingInput {
+export type UpdateListingInput = {
   title?: string;
   rentPrice?: number;
   salePrice?: number;
   availableFrom?: string | null;
-  roomFeatures?: string[];
+  roomFeatures?: RoomFeatureKey[];
+  houseFeatures?: HouseFeatureKey[];
   smokingAllowed?: boolean;
   deposit?: number | null;
-}
+};
 
-export interface ListingSummary {
+export type ListingSummary = {
   id: string;
   reference: string | null;
   title: string | null;
@@ -49,7 +51,7 @@ export interface ListingSummary {
   rentPrice: string | null;
   salePrice: string | null;
   createdAt: string | null;
-}
+};
 
 export type ListMyListingsResult =
   | { ok: true; status: number; listings: ListingSummary[] }
@@ -91,6 +93,34 @@ export class ListingsApi {
         headers: { "Content-Type": "application/json" },
       },
     );
+  }
+
+  async geocode(
+    query: string,
+    accessToken: string,
+  ): Promise<{ lat: number; lon: number } | null> {
+    const qs = new URLSearchParams({
+      q: query,
+      format: "json",
+      limit: "1",
+      countrycodes: "pt",
+    });
+    const res = await this.client.request(`/nominatim/search?${qs}`, {
+      accessToken,
+    });
+    if (!res.ok) return null;
+    try {
+      const parsed = JSON.parse(res.body) as {
+        data?: Array<{ lat?: string; lon?: string }>;
+      };
+      const first = parsed.data?.[0];
+      if (!first?.lat || !first?.lon) return null;
+      const lat = Number(first.lat);
+      const lon = Number(first.lon);
+      return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+    } catch {
+      return null;
+    }
   }
 
   deleteListing(

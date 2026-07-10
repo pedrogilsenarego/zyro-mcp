@@ -94,7 +94,14 @@ test("createListing posts a multipart form to /listing/add", async () => {
   const api = new ListingsApi(client);
 
   await api.createListing(
-    { title: "Room", rentPrice: 400, propertyType: "room", businessType: "roomRent" },
+    {
+      title: "Room",
+      rentPrice: 400,
+      propertyType: "room",
+      businessType: "roomRent",
+      latitude: 38.7,
+      longitude: -9.1,
+    },
     "tok",
   );
 
@@ -108,6 +115,9 @@ test("createListing posts a multipart form to /listing/add", async () => {
   assert.equal(form.get("title"), "Room");
   assert.equal(form.get("rentPrice"), "400");
   assert.equal(form.get("businessType"), "roomRent");
+  // Coordinates are serialized as strings.
+  assert.equal(form.get("latitude"), "38.7");
+  assert.equal(form.get("longitude"), "-9.1");
   // Optional field omitted → not appended.
   assert.equal(form.get("listingType"), null);
 });
@@ -122,6 +132,8 @@ test("createListing encodes optional fields (arrays JSON-stringified, dates, boo
       rentPrice: 345,
       propertyType: "room",
       businessType: "roomRent",
+      latitude: 38.7,
+      longitude: -9.1,
       availableFrom: "2026-07-17",
       roomFeatures: ["desk"],
       smokingAllowed: true,

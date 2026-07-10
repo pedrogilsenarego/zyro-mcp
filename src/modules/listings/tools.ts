@@ -4,15 +4,30 @@ import type { ToolDeps } from "../deps.js";
 import { authedHandler, text, errorText } from "../toolkit.js";
 import {
   ListingsApi,
+  type CreateListingArgs,
   type CreateListingInput,
   type UpdateListingInput,
 } from "./api.js";
+import {
+  HOUSE_FEATURE_KEYS,
+  LISTING_TYPES,
+  PROPERTY_TYPES,
+  ROOM_FEATURE_KEYS,
+} from "../../generated/contracts.js";
 
-// The backend supports more business types (sale, rent, auction), but the app UI
-// currently only lets users create room rentals. This tool mirrors that product
-// surface — widen this list (and propertyType/listingType) when the UI ships the
-// others; no backend change is needed for that.
 const SUPPORTED_BUSINESS_TYPES = ["roomRent"] as const;
+
+const roomFeaturesField = z
+  .array(z.enum(ROOM_FEATURE_KEYS))
+  .optional()
+  .describe(`Room amenities. Allowed keys: ${ROOM_FEATURE_KEYS.join(", ")}.`);
+
+const houseFeaturesField = z
+  .array(z.enum(HOUSE_FEATURE_KEYS))
+  .optional()
+  .describe(
+    `Shared-house amenities. Allowed keys: ${HOUSE_FEATURE_KEYS.join(", ")}.`,
+  );
 
 export function registerListingTools(
   server: McpServer,
@@ -31,7 +46,7 @@ export function registerListingTools(
       title: z.string().min(1),
       rentPrice: z.number().positive().describe("Monthly rent in EUR."),
       propertyType: z
-        .enum(["room", "apartment", "house"])
+        .enum(PROPERTY_TYPES)
         .describe("The property the rented room is in."),
       businessType: z
         .enum(SUPPORTED_BUSINESS_TYPES)
@@ -40,30 +55,61 @@ export function registerListingTools(
             "not yet available via this tool — do not pass 'sale', 'rent' or 'buy'.",
         ),
       listingType: z
-        .enum(["supply", "demand"])
+        .enum(LISTING_TYPES)
         .optional()
         .describe(
           "'supply' = offering a room to rent; 'demand' = looking for a room to rent.",
+        ),
+      location: z
+        .string()
+        .optional()
+        .describe(
+          "Place name where the room is, e.g. 'Cascais, Portugal'. Required for " +
+            "'supply' listings — it is geocoded so the listing appears on the map " +
+            "and in location searches. Use a specific town + country.",
         ),
       availableFrom: z
         .string()
         .optional()
         .describe("ISO date the listing becomes available, e.g. '2026-07-17'."),
-      roomFeatures: z
-        .array(z.string())
-        .optional()
-        .describe("Room amenities, e.g. ['desk', 'wifi']."),
+      roomFeatures: roomFeaturesField,
+      houseFeatures: houseFeaturesField,
       smokingAllowed: z.boolean().optional(),
       deposit: z.number().positive().optional().describe("Security deposit in EUR."),
     },
-    authedHandler(deps, async (args: CreateListingInput, { token }) => {
-      const result = await api.createListing(args, token);
-      return result.ok
-        ? text(`Listing created.\n${result.body}`)
-        : errorText(
-            `Listing creation failed (status ${result.status}): ${result.body}`,
+    authedHandler(
+      deps,
+      async ({ location, ...base }: CreateListingArgs, { token }) => {
+        if ((base.listingType ?? "supply") === "demand") {
+          return errorText(
+            "Demand listings can't be created here yet — they're located by area codes, not a place name.",
           );
-    }),
+        }
+        if (!location) {
+          return errorText(
+            "A location is required for supply listings. Pass `location`, e.g. 'Cascais, Portugal'.",
+          );
+        }
+        const geo = await api.geocode(location, token);
+        if (!geo) {
+          return errorText(
+            `Could not find a location for "${location}". Try a more specific place name (town + country).`,
+          );
+        }
+        const input: CreateListingInput = {
+          ...base,
+          listingType: "supply",
+          latitude: geo.lat,
+          longitude: geo.lon,
+        };
+        const result = await api.createListing(input, token);
+        return result.ok
+          ? text(`Listing created.\n${result.body}`)
+          : errorText(
+              `Listing creation failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
   );
 
   server.tool(
@@ -106,10 +152,8 @@ export function registerListingTools(
         .nullable()
         .optional()
         .describe("ISO date, e.g. '2026-07-17'. Pass null to clear."),
-      roomFeatures: z
-        .array(z.string())
-        .optional()
-        .describe("Replaces the current room amenities, e.g. ['desk', 'wifi']."),
+      roomFeatures: roomFeaturesField,
+      houseFeatures: houseFeaturesField,
       smokingAllowed: z.boolean().optional(),
       deposit: z
         .number()
