@@ -18,6 +18,8 @@ export type PublishStatus = (typeof PUBLISH_STATUSES)[number];
 export const PAYMENT_TYPE_NAMES = ["electricity","water","internet","gas","leaseRent","credit","house","cleaning","adjustment","management","taxes","condominium","constructionLabors"] as const;
 export type PaymentTypeName = (typeof PAYMENT_TYPE_NAMES)[number];
 export const PAYMENT_TYPE_CODE = {"electricity":"1","water":"2","internet":"3","gas":"4","leaseRent":"5","credit":"6","house":"7","cleaning":"8","adjustment":"9","management":"10","taxes":"11","condominium":"12","constructionLabors":"13"} as const;
+export const EVENT_TYPES = ["lease","labors","tax_imi","condominium","credit","airbnb_reservation"] as const;
+export type EventType = (typeof EVENT_TYPES)[number];
 
 export type CreateListingBase = {
   title: string;
