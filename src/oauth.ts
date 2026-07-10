@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Response } from "express";
-import { jwtVerify } from "jose";
+import { jwtVerify, importSPKI } from "jose";
 import type {
   OAuthServerProvider,
   AuthorizationParams,
@@ -30,6 +30,8 @@ interface StoredCode {
 export type RefreshGrantFn = (
   refreshToken: string,
 ) => Promise<{ accessToken: string; refreshToken: string } | null>;
+
+type VerifyKey = Awaited<ReturnType<typeof importSPKI>>;
 
 // File-backed client registry so registrations survive restarts (else clients
 // break with `invalid_client`). Use a shared store for multi-instance deploys.
@@ -83,7 +85,7 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
   private codes = new Map<string, StoredCode>();
 
   constructor(
-    private readonly jwtSecret: Uint8Array,
+    private readonly verifyKey: VerifyKey,
     private readonly consentUrl: string,
     clientsStorePath: string,
     private readonly refreshGrant?: RefreshGrantFn,
@@ -130,7 +132,9 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
     }
 
     try {
-      await jwtVerify(fields.accessToken, this.jwtSecret);
+      await jwtVerify(fields.accessToken, this.verifyKey, {
+        algorithms: ["RS256"],
+      });
     } catch {
       return null; // not a valid imocerto token
     }
@@ -200,7 +204,9 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
 
   /** Verify the imocerto JWT and expose the user id to request handlers. */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const { payload } = await jwtVerify(token, this.jwtSecret);
+    const { payload } = await jwtVerify(token, this.verifyKey, {
+      algorithms: ["RS256"],
+    });
     return {
       token,
       clientId: "zyro-mcp",

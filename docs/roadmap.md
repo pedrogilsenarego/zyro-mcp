@@ -11,7 +11,7 @@
 - [ ] Tier 2 tools — properties, payments, lease events, financials.
 
 ## Auth / robustness
-- [ ] Refresh tokens — implement `exchangeRefreshToken` + issue a refresh token at consent. Requires storing the imocerto refresh token and calling the BE `/auth/refresh` to mint a new JWT. Without it, clients re-auth every hour. Real clients (e.g. LibreChat) expect this.
+- [x] Refresh tokens — DONE via a dedicated MCP grant (not the browser session, HttpOnly preserved). BE `mcp_oauth_grants` table + `/auth/mcp/grant` (consent) and `/auth/mcp/token` (rotate); zyro relays refresh; FE consent forwards the MCP refresh token. Verified live (grant row created, scoped `listings:write`, 30-day expiry).
 
 ## Deployment (Hetzner)
 - [ ] Confirm the BE access block type — CORS (server-to-server unaffected) vs Hetzner firewall (needs private-network path / IP allowlist).

@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SignJWT } from "jose";
+import { SignJWT, generateKeyPair } from "jose";
 import { FileClientsStore, ZyroOAuthProvider } from "./oauth.js";
 
-const secret = new TextEncoder().encode("test-secret");
+const { publicKey, privateKey } = await generateKeyPair("RS256");
 const CONSENT = "http://front/consent";
 
 function tmpFile(): { file: string; cleanup: () => void } {
@@ -16,9 +16,9 @@ function tmpFile(): { file: string; cleanup: () => void } {
 
 function makeToken(payload: Record<string, unknown> = { userId: "u1" }) {
   return new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
+    .setProtectedHeader({ alg: "RS256" })
     .setExpirationTime("1h")
-    .sign(secret);
+    .sign(privateKey);
 }
 
 function register(store: FileClientsStore) {
@@ -60,7 +60,7 @@ test("FileClientsStore tolerates a missing or corrupt file", () => {
 test("authorize redirects to the consent page carrying the OAuth params", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file);
     let redirectedTo = "";
     const res = { redirect: (url: string) => (redirectedTo = url) } as any;
 
@@ -85,7 +85,7 @@ test("authorize redirects to the consent page carrying the OAuth params", async 
 test("completeConsent → exchangeAuthorizationCode issues the JWT once", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file);
     const client = register(p.clientsStore);
     const token = await makeToken({ userId: "u1" });
 
@@ -115,7 +115,7 @@ test("completeConsent → exchangeAuthorizationCode issues the JWT once", async 
 test("completeConsent rejects unknown client, bad redirect, invalid token", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file);
     const client = register(p.clientsStore);
     const token = await makeToken();
     const base = { state: "", codeChallenge: "c" };
@@ -140,7 +140,7 @@ test("completeConsent rejects unknown client, bad redirect, invalid token", asyn
 test("verifyAccessToken exposes the userId from the JWT", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file);
     const token = await makeToken({ userId: "user-42" });
     const info = await p.verifyAccessToken(token);
     assert.equal(info.extra?.userId, "user-42");
@@ -153,7 +153,7 @@ test("verifyAccessToken exposes the userId from the JWT", async () => {
 test("exchangeRefreshToken throws when no refresh function is configured", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file);
     await assert.rejects(() => p.exchangeRefreshToken({} as any, "some-token"));
   } finally {
     cleanup();
@@ -168,7 +168,7 @@ test("exchangeRefreshToken relays to the grant refresher and returns rotated tok
       calls.push(rt);
       return { accessToken: "new-access", refreshToken: "rotated-refresh" };
     };
-    const p = new ZyroOAuthProvider(secret, CONSENT, file, refreshGrant);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file, refreshGrant);
 
     const tokens = await p.exchangeRefreshToken({} as any, "old-refresh");
     assert.deepEqual(calls, ["old-refresh"]);
@@ -183,7 +183,7 @@ test("exchangeRefreshToken relays to the grant refresher and returns rotated tok
 test("exchangeRefreshToken rejects when the refresher returns null", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file, async () => null);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file, async () => null);
     await assert.rejects(() => p.exchangeRefreshToken({} as any, "bad"));
   } finally {
     cleanup();
@@ -193,7 +193,7 @@ test("exchangeRefreshToken rejects when the refresher returns null", async () =>
 test("exchangeAuthorizationCode returns the refresh token when consent issued one", async () => {
   const { file, cleanup } = tmpFile();
   try {
-    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const p = new ZyroOAuthProvider(publicKey, CONSENT, file);
     const client = register(p.clientsStore);
     const token = await makeToken();
 

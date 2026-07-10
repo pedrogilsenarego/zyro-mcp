@@ -5,8 +5,10 @@ export interface Config {
   publicUrl: string;
   /** Port to listen on. */
   port: number;
-  /** Shared secret used to verify imocerto access-token JWTs (HS256). */
-  jwtSecret: string;
+  /** RS256 public key (PEM) used to verify imocerto access-token JWTs. This
+   * server only ever verifies — it never holds a signing key, so a breach here
+   * cannot forge tokens. */
+  jwtPublicKey: string;
   /** Frontend page that renders the login + consent UI (the real app). */
   consentUrl: string;
   /** File where registered OAuth clients are persisted across restarts. */
@@ -25,10 +27,13 @@ export function loadConfig(): Config {
     process.env.PUBLIC_URL || `http://localhost:${port}`
   ).replace(/\/+$/, "");
 
-  const jwtSecret = process.env.IMOCERTO_JWT_SECRET || "";
-  if (!jwtSecret) {
+  const jwtPublicKey = (process.env.IMOCERTO_JWT_PUBLIC_KEY || "").replace(
+    /\\n/g,
+    "\n",
+  );
+  if (!jwtPublicKey) {
     throw new Error(
-      "IMOCERTO_JWT_SECRET is required — it must match the backend's JWT_SECRET so this server can verify access tokens.",
+      "IMOCERTO_JWT_PUBLIC_KEY is required — the backend's RS256 public key, used to verify access tokens.",
     );
   }
 
@@ -41,5 +46,5 @@ export function loadConfig(): Config {
   const clientsStorePath =
     process.env.OAUTH_CLIENTS_PATH || "./data/oauth-clients.json";
 
-  return { apiBaseUrl, publicUrl, port, jwtSecret, consentUrl, clientsStorePath };
+  return { apiBaseUrl, publicUrl, port, jwtPublicKey, consentUrl, clientsStorePath };
 }

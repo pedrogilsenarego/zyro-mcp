@@ -1,4 +1,5 @@
 import express from "express";
+import { importSPKI } from "jose";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
@@ -32,8 +33,10 @@ async function refreshGrant(refreshToken: string) {
   }
 }
 
+const verifyKey = await importSPKI(config.jwtPublicKey, "RS256");
+
 const provider = new ZyroOAuthProvider(
-  new TextEncoder().encode(config.jwtSecret),
+  verifyKey,
   config.consentUrl,
   config.clientsStorePath,
   refreshGrant,
