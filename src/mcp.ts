@@ -3,6 +3,10 @@ import type { BackendClient } from "./backend/client.js";
 import type { ToolDeps } from "./modules/deps.js";
 import { ListingsApi } from "./modules/listings/api.js";
 import { registerListingTools } from "./modules/listings/tools.js";
+import { GuestsApi } from "./modules/guests/api.js";
+import { registerGuestTools } from "./modules/guests/tools.js";
+import { PropertiesApi } from "./modules/properties/api.js";
+import { registerPropertyTools } from "./modules/properties/tools.js";
 
 /**
  * Composition root: builds an MCP server for a single request and registers
@@ -24,6 +28,8 @@ export function createMcpServer(
   );
 
   registerListingTools(server, new ListingsApi(client), deps);
+  registerGuestTools(server, new GuestsApi(client), deps);
+  registerPropertyTools(server, new PropertiesApi(client), deps);
 
   return server;
 }
