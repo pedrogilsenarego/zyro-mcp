@@ -7,6 +7,7 @@ import { loadConfig } from "./config.js";
 import { BackendClient } from "./backend/client.js";
 import { ZyroOAuthProvider } from "./oauth.js";
 import { createMcpServer } from "./mcp.js";
+import { rateLimit } from "./rateLimit.js";
 
 const config = loadConfig();
 const backend = new BackendClient(config.apiBaseUrl);
@@ -43,8 +44,15 @@ const provider = new ZyroOAuthProvider(
 );
 
 const app = express();
+// Behind Caddy — trust its X-Forwarded-For so the limiter keys off the real IP.
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "4mb" }));
 app.use(express.urlencoded({ extended: false }));
+
+// General flood protection, plus a stricter cap on dynamic client registration
+// (unauthenticated + writes to disk).
+app.use(rateLimit({ windowMs: 15 * 60_000, max: 300 }));
+app.use("/register", rateLimit({ windowMs: 60 * 60_000, max: 10 }));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "zyro-mcp", apiBaseUrl: config.apiBaseUrl });
