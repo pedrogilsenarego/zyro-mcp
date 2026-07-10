@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolDeps } from "../deps.js";
+import { authedHandler, text, errorText } from "../toolkit.js";
 import { ListingsApi, type CreateListingInput } from "./api.js";
 
 export function registerListingTools(
@@ -18,31 +19,14 @@ export function registerListingTools(
       businessType: z.string().describe("e.g. 'roomRent' or 'buy'."),
       listingType: z.enum(["supply", "demand"]).optional(),
     },
-    async (args) => {
-      const token = deps.getAccessToken();
-      if (!token) {
-        return {
-          isError: true,
-          content: [{ type: "text", text: "Not authenticated." }],
-        };
-      }
-
-      const result = await api.createListing(args as CreateListingInput, token);
-      if (!result.ok) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Listing creation failed (status ${result.status}): ${result.body}`,
-            },
-          ],
-        };
-      }
-      return {
-        content: [{ type: "text", text: `Listing created.\n${result.body}` }],
-      };
-    },
+    authedHandler(deps, async (args: CreateListingInput, { token }) => {
+      const result = await api.createListing(args, token);
+      return result.ok
+        ? text(`Listing created.\n${result.body}`)
+        : errorText(
+            `Listing creation failed (status ${result.status}): ${result.body}`,
+          );
+    }),
   );
 
   server.tool(
@@ -52,41 +36,22 @@ export function registerListingTools(
       "reference, title, status, type, price). Use the returned id for " +
       "get_listing / update_listing / delete_listing.",
     {},
-    async () => {
-      const token = deps.getAccessToken();
-      const userId = deps.getUserId();
-      if (!token || !userId) {
-        return {
-          isError: true,
-          content: [{ type: "text", text: "Not authenticated." }],
-        };
-      }
-
+    authedHandler(deps, async (_args, { token, userId }) => {
+      if (!userId) return errorText("Not authenticated.");
       const result = await api.listMyListings(userId, token);
       if (!result.ok) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Could not fetch listings (status ${result.status}): ${result.body}`,
-            },
-          ],
-        };
+        return errorText(
+          `Could not fetch listings (status ${result.status}): ${result.body}`,
+        );
       }
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${result.listings.length} listing(s):\n${JSON.stringify(
-              result.listings,
-              null,
-              2,
-            )}`,
-          },
-        ],
-      };
-    },
+      return text(
+        `${result.listings.length} listing(s):\n${JSON.stringify(
+          result.listings,
+          null,
+          2,
+        )}`,
+      );
+    }),
   );
 
   server.tool(
@@ -96,30 +61,13 @@ export function registerListingTools(
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
     },
-    async (args) => {
-      const token = deps.getAccessToken();
-      if (!token) {
-        return {
-          isError: true,
-          content: [{ type: "text", text: "Not authenticated." }],
-        };
-      }
-
+    authedHandler(deps, async (args: { listingId: string }, { token }) => {
       const result = await api.deleteListing(args.listingId, token);
-      if (!result.ok) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Listing deletion failed (status ${result.status}): ${result.body}`,
-            },
-          ],
-        };
-      }
-      return {
-        content: [{ type: "text", text: `Listing ${args.listingId} deleted.` }],
-      };
-    },
+      return result.ok
+        ? text(`Listing ${args.listingId} deleted.`)
+        : errorText(
+            `Listing deletion failed (status ${result.status}): ${result.body}`,
+          );
+    }),
   );
 }

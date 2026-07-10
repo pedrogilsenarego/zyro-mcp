@@ -1,5 +1,24 @@
 import type { BackendClient, BackendResult } from "../../backend/client.js";
 
+/**
+ * Raw BE fields `toSummaries` reads. This list is the contract with the
+ * backend — the contract test asserts a live response still carries them, so a
+ * rename/removal on the BE fails loudly here instead of silently nulling a
+ * column. Keep in sync with `toSummaries`.
+ */
+export const LISTING_SOURCE_FIELDS = [
+  "id",
+  "reference",
+  "title",
+  "isPublished",
+  "listingType",
+  "businessType",
+  "realEstateType",
+  "rentPrice",
+  "salePrice",
+  "createdAt",
+] as const;
+
 export interface CreateListingInput {
   title: string;
   rentPrice: number;
@@ -88,14 +107,20 @@ function toSummaries(body: string): ListingSummary[] {
   return rows.map((row): ListingSummary => {
     const r = row as Record<string, unknown>;
     const str = (v: unknown) => (v == null ? null : String(v));
+    const businessType = str(r.businessType);
+    // realEstateType is denormalized and null for rooms, so fall back to "room"
+    // when the business is a room rental.
+    const propertyType =
+      str(r.realEstateType) ??
+      (businessType === "roomRent" ? "room" : null);
     return {
       id: String(r.id ?? ""),
       reference: str(r.reference),
       title: str(r.title),
       status: str(r.isPublished),
       listingType: str(r.listingType),
-      businessType: str(r.businessType),
-      propertyType: str(r.realEstateType ?? r.propertyType),
+      businessType,
+      propertyType,
       rentPrice: str(r.rentPrice),
       salePrice: str(r.salePrice),
       createdAt: str(r.createdAt),
