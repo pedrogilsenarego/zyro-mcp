@@ -10,10 +10,33 @@ import { createMcpServer } from "./mcp.js";
 const config = loadConfig();
 const backend = new BackendClient(config.apiBaseUrl);
 
+// Exchanges an MCP refresh token with the backend for a fresh access token +
+// rotated refresh token. Returns null on any invalid/expired grant.
+async function refreshGrant(refreshToken: string) {
+  const res = await backend.request("/auth/mcp/token", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: refreshToken }),
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) return null;
+  try {
+    const { data } = JSON.parse(res.body) as {
+      data?: { accessToken?: string; refreshToken?: string };
+    };
+    if (data?.accessToken && data?.refreshToken) {
+      return { accessToken: data.accessToken, refreshToken: data.refreshToken };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const provider = new ZyroOAuthProvider(
   new TextEncoder().encode(config.jwtSecret),
   config.consentUrl,
   config.clientsStorePath,
+  refreshGrant,
 );
 
 const app = express();
@@ -34,6 +57,9 @@ app.post("/oauth/consent-callback", async (req, res) => {
     state: String(req.body.state ?? ""),
     codeChallenge: String(req.body.code_challenge ?? ""),
     accessToken: String(req.body.access_token ?? ""),
+    refreshToken: req.body.refresh_token
+      ? String(req.body.refresh_token)
+      : undefined,
   };
 
   const redirectTo = await provider.completeConsent(fields);

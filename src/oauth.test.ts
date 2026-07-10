@@ -150,11 +150,65 @@ test("verifyAccessToken exposes the userId from the JWT", async () => {
   }
 });
 
-test("exchangeRefreshToken is unsupported in the POC", async () => {
+test("exchangeRefreshToken throws when no refresh function is configured", async () => {
   const { file, cleanup } = tmpFile();
   try {
     const p = new ZyroOAuthProvider(secret, CONSENT, file);
-    await assert.rejects(() => p.exchangeRefreshToken());
+    await assert.rejects(() => p.exchangeRefreshToken({} as any, "some-token"));
+  } finally {
+    cleanup();
+  }
+});
+
+test("exchangeRefreshToken relays to the grant refresher and returns rotated tokens", async () => {
+  const { file, cleanup } = tmpFile();
+  try {
+    const calls: string[] = [];
+    const refreshGrant = async (rt: string) => {
+      calls.push(rt);
+      return { accessToken: "new-access", refreshToken: "rotated-refresh" };
+    };
+    const p = new ZyroOAuthProvider(secret, CONSENT, file, refreshGrant);
+
+    const tokens = await p.exchangeRefreshToken({} as any, "old-refresh");
+    assert.deepEqual(calls, ["old-refresh"]);
+    assert.equal(tokens.access_token, "new-access");
+    assert.equal(tokens.refresh_token, "rotated-refresh");
+    assert.equal(tokens.token_type, "Bearer");
+  } finally {
+    cleanup();
+  }
+});
+
+test("exchangeRefreshToken rejects when the refresher returns null", async () => {
+  const { file, cleanup } = tmpFile();
+  try {
+    const p = new ZyroOAuthProvider(secret, CONSENT, file, async () => null);
+    await assert.rejects(() => p.exchangeRefreshToken({} as any, "bad"));
+  } finally {
+    cleanup();
+  }
+});
+
+test("exchangeAuthorizationCode returns the refresh token when consent issued one", async () => {
+  const { file, cleanup } = tmpFile();
+  try {
+    const p = new ZyroOAuthProvider(secret, CONSENT, file);
+    const client = register(p.clientsStore);
+    const token = await makeToken();
+
+    const redirectUrl = await p.completeConsent({
+      clientId: client.client_id,
+      redirectUri: "http://cb",
+      state: "",
+      codeChallenge: "chal",
+      accessToken: token,
+      refreshToken: "mcp-refresh",
+    });
+    const code = new URL(redirectUrl!).searchParams.get("code")!;
+
+    const tokens = await p.exchangeAuthorizationCode(client, code);
+    assert.equal(tokens.refresh_token, "mcp-refresh");
   } finally {
     cleanup();
   }

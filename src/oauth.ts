@@ -21,8 +21,15 @@ interface StoredCode {
   redirectUri: string;
   codeChallenge: string;
   accessToken: string; // the imocerto JWT this code will hand back
+  refreshToken?: string; // the MCP grant's refresh token (if consent issued one)
   expiresAt: number;
 }
+
+// Exchanges an MCP refresh token with the backend for a fresh access token +
+// rotated refresh token. Returns null if the grant is invalid/expired.
+export type RefreshGrantFn = (
+  refreshToken: string,
+) => Promise<{ accessToken: string; refreshToken: string } | null>;
 
 // File-backed client registry so registrations survive restarts (else clients
 // break with `invalid_client`). Use a shared store for multi-instance deploys.
@@ -79,6 +86,7 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
     private readonly jwtSecret: Uint8Array,
     private readonly consentUrl: string,
     clientsStorePath: string,
+    private readonly refreshGrant?: RefreshGrantFn,
   ) {
     this.clientsStore = new FileClientsStore(clientsStorePath);
   }
@@ -114,6 +122,7 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
     state: string;
     codeChallenge: string;
     accessToken: string;
+    refreshToken?: string;
   }): Promise<string | null> {
     const client = await this.clientsStore.getClient(fields.clientId);
     if (!client || !client.redirect_uris.includes(fields.redirectUri)) {
@@ -132,6 +141,7 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
       redirectUri: fields.redirectUri,
       codeChallenge: fields.codeChallenge,
       accessToken: fields.accessToken,
+      refreshToken: fields.refreshToken,
       expiresAt: Date.now() + CODE_TTL_MS,
     });
 
@@ -167,12 +177,25 @@ export class ZyroOAuthProvider implements OAuthServerProvider {
       access_token: stored.accessToken,
       token_type: "Bearer",
       expires_in: 3600,
+      ...(stored.refreshToken ? { refresh_token: stored.refreshToken } : {}),
     };
   }
 
-  async exchangeRefreshToken(): Promise<OAuthTokens> {
-    // POC: no refresh. When the 1h token expires, the client re-runs the flow.
-    throw new Error("Refresh tokens are not supported in this POC");
+  async exchangeRefreshToken(
+    _client: OAuthClientInformationFull,
+    refreshToken: string,
+  ): Promise<OAuthTokens> {
+    if (!this.refreshGrant) {
+      throw new Error("Refresh tokens are not configured");
+    }
+    const tokens = await this.refreshGrant(refreshToken);
+    if (!tokens) throw new Error("Invalid or expired refresh token");
+    return {
+      access_token: tokens.accessToken,
+      token_type: "Bearer",
+      expires_in: 3600,
+      refresh_token: tokens.refreshToken,
+    };
   }
 
   /** Verify the imocerto JWT and expose the user id to request handlers. */
