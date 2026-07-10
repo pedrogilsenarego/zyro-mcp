@@ -1,0 +1,25 @@
+services:
+  zyro-mcp:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    volumes:
+      - zyro-data:/app/data
+    expose:
+      - "8080" # internal only; Caddy proxies to it
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  zyro-data:
+  caddy-data:
+  caddy-config:

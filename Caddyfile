@@ -1,0 +1,5 @@
+# Public HTTPS entrypoint. Caddy auto-provisions a TLS cert for this domain.
+# Only zyro-mcp is exposed publicly; the imocerto BE is not.
+mcp.zyro.example {
+    reverse_proxy zyro-mcp:8080
+}
