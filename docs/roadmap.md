@@ -14,15 +14,16 @@
 - [x] Refresh tokens — DONE via a dedicated MCP grant (not the browser session, HttpOnly preserved). BE `mcp_oauth_grants` table + `/auth/mcp/grant` (consent) and `/auth/mcp/token` (rotate); zyro relays refresh; FE consent forwards the MCP refresh token. Verified live (grant row created, scoped `listings:write`, 30-day expiry).
 
 ## Deployment (Hetzner)
-- [ ] Confirm the BE access block type — CORS (server-to-server unaffected) vs Hetzner firewall (needs private-network path / IP allowlist).
-- [ ] Provision a separate small Hetzner box on the **same private network** as the BE.
-- [ ] Point `IMOCERTO_API_BASE_URL` at the BE's **private** IP (skips the public firewall).
+- [x] BE access block is **CORS** (app-level `ALLOWED_ORIGINS`), not a network firewall — confirmed by a server-to-server request from a non-FE host returning 200. So server-to-server (zyro) is unaffected.
+- [ ] Provision a small box for zyro (separate from the BE for isolation; private network optional since connectivity works over the public URL).
+- [ ] Set `IMOCERTO_API_BASE_URL=https://api.zyr-o.app/api` (public URL works server-to-server; use a private IP only if you want defense-in-depth).
 - [ ] Public subdomain `mcp.zyro…` + Caddy auto-TLS (Dockerfile / Caddyfile / docker-compose already in repo).
 - [ ] Persistent volume for `/app/data` (OAuth client store survives redeploys).
 - [ ] Create `.env.production` from `.env.production.example`.
 
 ## Security hardening
-- [ ] 🔴 Migrate BE JWT signing HS256 → **RS256**, so zyro holds only the public verify key and cannot forge tokens if breached. (Highest-value: today a compromised zyro could mint a token for any user.)
+- [x] 🔴 RS256 — DONE. BE signs access tokens with the RS256 private key; BE + zyro verify with the public key. zyro holds no signing secret (can't forge if breached). BE deployed to prod, app login verified. `verifyToken` keeps an HS256 fallback for transition.
+- [ ] Decouple BE from `JWT_SECRET` (then drop it): ✅ HS256 fallback removed — `verifyToken` is RS256-only. Remaining: make the refresh token opaque (it's DB-looked-up, not sig-verified) and give `alertUnsubscribe` its own secret; then `JWT_SECRET` can be dropped entirely.
 - [ ] 🟠 Rate-limit `/mcp`.
 - [ ] 🟠 Keep zyro isolated (separate box) + patched.
 - [ ] 🟢 Allowlist only zyro's private IP on the BE side (defense in depth).
