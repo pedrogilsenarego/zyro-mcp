@@ -20,10 +20,18 @@ export function createMcpServer(
   const server = new McpServer(
     { name: "zyro-mcp", version: "0.0.1" },
     {
-      instructions:
-        "You act inside a user's Zyr-o / imocerto account, scoped by their auth " +
-        "token. Never ask for or accept a user id. Plan limits and email " +
-        "verification are enforced by the backend — relay any error to the user.",
+      instructions: [
+        "You act inside a user's Zyr-o / imocerto account, scoped by their auth",
+        "token. Never ask for or accept a user id — identity always comes from",
+        "the token.",
+        "",
+        "Business rules are enforced by the backend, not here — when a call",
+        "fails, relay the backend's error verbatim rather than guessing.",
+        "",
+        "A user sees both their own resources and ones shared with them, but can",
+        "only modify what they own or were granted edit access to. A permission",
+        "error on a write means they have view-only access — tell them that.",
+      ].join("\n"),
     },
   );
 

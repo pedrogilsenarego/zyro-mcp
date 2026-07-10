@@ -13,6 +13,8 @@ export const GENDERS = ["male","female","any"] as const;
 export type Gender = (typeof GENDERS)[number];
 export const PROPERTY_TYPES = ["room","apartment","house"] as const;
 export type PropertyType = (typeof PROPERTY_TYPES)[number];
+export const PUBLISH_STATUSES = ["active","inactive","draft","rented"] as const;
+export type PublishStatus = (typeof PUBLISH_STATUSES)[number];
 
 export type CreateListingBase = {
   title: string;
@@ -34,10 +36,6 @@ export type CreateListingInput = CreateListingBase &
     | { listingType: "demand"; locationCodes: string[] }
   );
 
-// A listing update is a partial PATCH — only changed fields are sent. Mirrors
-// CreateListingBase's editable fields, adds salePrice, and lets the clearable
-// columns be nulled. The BE strips id/userId and enforces edit access before
-// applying the update.
 export type UpdateListingInput = {
   title?: string;
   rentPrice?: number;

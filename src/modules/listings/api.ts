@@ -21,6 +21,32 @@ export const LISTING_SOURCE_FIELDS = [
   "createdAt",
 ] as const;
 
+// Raw BE fields toDetail reads (from GET /listing/:id). Read coverage must
+// include every field update_listing can write, so the model can do relative
+// edits (e.g. "remove desk") and confirm price/date before activating.
+export const LISTING_DETAIL_SOURCE_FIELDS = [
+  "id",
+  "reference",
+  "title",
+  "description",
+  "isPublished",
+  "listingType",
+  "businessType",
+  "rentPrice",
+  "deposit",
+  "availableFrom",
+  "availableTo",
+  "roomFeatures",
+  "houseFeatures",
+  "smokingAllowed",
+  "petFriendly",
+  "gender",
+  "maxPersons",
+  "bedrooms",
+  "bathrooms",
+  "matchAlertsEnabled",
+] as const;
+
 export type CreateListingArgs = CreateListingBase & {
   listingType?: "supply" | "demand";
   location?: string;
@@ -41,6 +67,33 @@ export type ListingSummary = {
 
 export type ListMyListingsResult =
   | { ok: true; status: number; listings: ListingSummary[] }
+  | { ok: false; status: number; body: string };
+
+export type ListingDetail = {
+  id: string;
+  reference: string | null;
+  title: string | null;
+  description: string | null;
+  status: string | null;
+  listingType: string | null;
+  businessType: string | null;
+  rentPrice: string | null;
+  deposit: string | null;
+  availableFrom: string | null;
+  availableTo: string | null;
+  roomFeatures: string[];
+  houseFeatures: string[];
+  smokingAllowed: boolean | null;
+  petFriendly: boolean | null;
+  gender: string | null;
+  maxPersons: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  matchAlertsEnabled: boolean | null;
+};
+
+export type GetListingResult =
+  | { ok: true; status: number; listing: ListingDetail }
   | { ok: false; status: number; body: string };
 
 export class ListingsApi {
@@ -76,6 +129,22 @@ export class ListingsApi {
         method: "PATCH",
         accessToken,
         body: JSON.stringify(input),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  setPublishStatus(
+    listingId: string,
+    status: string,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/listing/${encodeURIComponent(listingId)}/publish-status`,
+      {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify({ isPublished: status }),
         headers: { "Content-Type": "application/json" },
       },
     );
@@ -119,6 +188,22 @@ export class ListingsApi {
     );
   }
 
+  async getListing(
+    listingId: string,
+    accessToken: string,
+  ): Promise<GetListingResult> {
+    const res = await this.client.request(
+      `/listing/${encodeURIComponent(listingId)}`,
+      { accessToken },
+    );
+    if (!res.ok) return { ok: false, status: res.status, body: res.body };
+    const detail = toDetail(res.body);
+    if (!detail) {
+      return { ok: false, status: 404, body: "Listing not found." };
+    }
+    return { ok: true, status: res.status, listing: detail };
+  }
+
   async listMyListings(
     userId: string,
     accessToken: string,
@@ -130,6 +215,52 @@ export class ListingsApi {
     if (!res.ok) return { ok: false, status: res.status, body: res.body };
     return { ok: true, status: res.status, listings: toSummaries(res.body) };
   }
+}
+
+function toDetail(body: string): ListingDetail | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const row = (parsed as { data?: unknown })?.data ?? parsed;
+  if (!row || typeof row !== "object") return null;
+  const r = row as Record<string, unknown>;
+  if (!r.id) return null;
+
+  const str = (v: unknown) => (v == null ? null : String(v));
+  const bool = (v: unknown) => (v == null ? null : Boolean(v));
+  const num = (v: unknown) => {
+    if (v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const strArray = (v: unknown) =>
+    Array.isArray(v) ? v.map(String) : [];
+
+  return {
+    id: String(r.id),
+    reference: str(r.reference),
+    title: str(r.title),
+    description: str(r.description),
+    status: str(r.isPublished),
+    listingType: str(r.listingType),
+    businessType: str(r.businessType),
+    rentPrice: str(r.rentPrice),
+    deposit: str(r.deposit),
+    availableFrom: str(r.availableFrom),
+    availableTo: str(r.availableTo),
+    roomFeatures: strArray(r.roomFeatures),
+    houseFeatures: strArray(r.houseFeatures),
+    smokingAllowed: bool(r.smokingAllowed),
+    petFriendly: bool(r.petFriendly),
+    gender: str(r.gender),
+    maxPersons: num(r.maxPersons),
+    bedrooms: num(r.bedrooms),
+    bathrooms: num(r.bathrooms),
+    matchAlertsEnabled: bool(r.matchAlertsEnabled),
+  };
 }
 
 function toSummaries(body: string): ListingSummary[] {

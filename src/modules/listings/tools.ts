@@ -12,6 +12,7 @@ import {
   HOUSE_FEATURE_KEYS,
   LISTING_TYPES,
   PROPERTY_TYPES,
+  PUBLISH_STATUSES,
   ROOM_FEATURE_KEYS,
 } from "../../generated/contracts.js";
 
@@ -91,6 +92,13 @@ export function registerListingTools(
       bedrooms: bedroomsField.optional(),
       bathrooms: bathroomsField.optional(),
     },
+    {
+      title: "Create listing",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     authedHandler(
       deps,
       async ({ location, ...base }: CreateListingArgs, { token }) => {
@@ -131,8 +139,15 @@ export function registerListingTools(
     "List the authenticated user's own (and shared-with) listings, including " +
       "drafts and inactive ones. Returns a curated summary per listing (id, " +
       "reference, title, status, type, price). Use the returned id for " +
-      "update_listing / delete_listing.",
+      "get_listing (full detail), update_listing or set_listing_status. This " +
+      "summary omits amenities and availability — call get_listing before " +
+      "editing roomFeatures/houseFeatures or before activating.",
     {},
+    {
+      title: "List listings",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
     authedHandler(deps, async (_args, { token, userId }) => {
       if (!userId) return errorText("Not authenticated.");
       const result = await api.listMyListings(userId, token);
@@ -152,10 +167,46 @@ export function registerListingTools(
   );
 
   server.tool(
+    "get_listing",
+    "Fetch the full detail of one of the authenticated user's listings by id, " +
+      "including fields list_listings omits: description, amenities " +
+      "(roomFeatures / houseFeatures), availableFrom / availableTo, deposit, " +
+      "gender, maxPersons, and match-alert state. The id comes from a prior " +
+      "list_listings / create_listing result — never guess it.\n\n" +
+      "Call this BEFORE any relative edit. roomFeatures / houseFeatures are " +
+      "whole-array fields — update_listing replaces the entire array, so to " +
+      "add or remove one amenity you must read the current list here first and " +
+      "send the full intended array, or you will silently drop the others. " +
+      "Also use it to read the current price and availableFrom before " +
+      "activating a listing with set_listing_status.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+    },
+    {
+      title: "Get listing detail",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ listingId }: { listingId: string }, { token }) => {
+        const result = await api.getListing(listingId, token);
+        return result.ok
+          ? text(JSON.stringify(result.listing, null, 2))
+          : errorText(
+              `Could not fetch listing (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
     "update_listing",
     "Update fields on one of the authenticated user's listings by id. Only the " +
       "fields you pass are changed; omit the rest. The id comes from a prior " +
-      "list_listings / create_listing result — never guess it.",
+      "list_listings / create_listing result — never guess it. roomFeatures and " +
+      "houseFeatures REPLACE the whole array — read the current values with " +
+      "get_listing first so a partial change doesn't drop existing amenities.",
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
       title: z.string().min(1).optional(),
@@ -178,6 +229,15 @@ export function registerListingTools(
       bedrooms: bedroomsField.nullable().optional(),
       bathrooms: bathroomsField.nullable().optional(),
     },
+    {
+      title: "Update listing",
+      readOnlyHint: false,
+      // Overwrites fields (incl. replacing whole arrays) but never removes the
+      // listing; re-sending the same payload yields the same state.
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     authedHandler(
       deps,
       async (
@@ -195,11 +255,67 @@ export function registerListingTools(
   );
 
   server.tool(
+    "set_listing_status",
+    "Set the publish status of one of the authenticated user's listings by id. " +
+      "'active' = publicly visible to renters and matched against demand; " +
+      "'inactive' and 'draft' = hidden from the public; 'rented' = marked as " +
+      "taken. The id comes from a prior list_listings / create_listing result — " +
+      "never guess it.\n\n" +
+      "Before setting a listing to 'active', first confirm its current price and " +
+      "availability date with the user: read them via list_listings, state them " +
+      "back (e.g. \"This will publish at EUR X/month, available from <date> — " +
+      "correct?\"), and offer to fix them with update_listing before publishing. " +
+      "This mirrors the review step the app shows when a listing goes live. Note " +
+      "that active room rentals auto-deactivate after ~2 months without an " +
+      "update. Relay any plan-limit or email-verification errors from the " +
+      "backend verbatim.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+      status: z
+        .enum(PUBLISH_STATUSES)
+        .describe(
+          "New publish status. 'active' publishes it publicly; 'inactive'/'draft' hide it; 'rented' marks it taken.",
+        ),
+    },
+    {
+      title: "Set listing status",
+      readOnlyHint: false,
+      // Not destructive to stored data, but it is outward-facing and
+      // consequential: 'active' makes the listing publicly visible and fires
+      // match notifications. Flagged destructive so clients confirm first.
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async (
+        { listingId, status }: { listingId: string; status: string },
+        { token },
+      ) => {
+        const result = await api.setPublishStatus(listingId, status, token);
+        return result.ok
+          ? text(`Listing ${listingId} is now ${status}.\n${result.body}`)
+          : errorText(
+              `Status change failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
     "delete_listing",
     "Delete one of the authenticated user's listings by id. The id comes from a " +
       "prior create_listing result or a listing lookup — never guess it.",
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
+    },
+    {
+      title: "Delete listing",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
     },
     authedHandler(deps, async (args: { listingId: string }, { token }) => {
       const result = await api.deleteListing(args.listingId, token);

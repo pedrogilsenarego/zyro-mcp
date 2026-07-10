@@ -9,6 +9,7 @@ import {
   HOUSE_FEATURE_KEYS,
   LISTING_TYPES,
   PROPERTY_TYPES,
+  PUBLISH_STATUSES,
   ROOM_FEATURE_KEYS,
 } from "../../generated/contracts.js";
 
@@ -24,9 +25,10 @@ import {
 type Registered = {
   description: string;
   shape: Record<string, z.ZodTypeAny>;
+  annotations?: Record<string, unknown>;
 };
 
-/** Fake server that records the shape passed to each `server.tool(...)` call. */
+/** Fake server that records the shape + annotations of each `server.tool(...)`. */
 function captureTools(): {
   server: McpServer;
   tools: Map<string, Registered>;
@@ -37,8 +39,15 @@ function captureTools(): {
       name: string,
       description: string,
       shape: Record<string, z.ZodTypeAny>,
+      ...rest: unknown[]
     ) {
-      tools.set(name, { description, shape });
+      // Overload is tool(name, description, shape, annotations?, cb). When
+      // annotations are present, rest = [annotations, cb]; otherwise [cb].
+      const annotations =
+        rest.length > 1 && typeof rest[0] === "object" && rest[0] !== null
+          ? (rest[0] as Record<string, unknown>)
+          : undefined;
+      tools.set(name, { description, shape, annotations });
     },
   } as unknown as McpServer;
   return { server, tools };
@@ -69,12 +78,45 @@ function enumOptionsOf(schema: z.ZodTypeAny): readonly string[] {
 
 const sortedKeys = (shape: Record<string, unknown>) => Object.keys(shape).sort();
 
-test("registers exactly the four listing tools", () => {
+test("registers exactly the listing tools", () => {
   const tools = registered();
   assert.deepEqual(
     [...tools.keys()].sort(),
-    ["create_listing", "delete_listing", "list_listings", "update_listing"],
+    [
+      "create_listing",
+      "delete_listing",
+      "get_listing",
+      "list_listings",
+      "set_listing_status",
+      "update_listing",
+    ],
   );
+});
+
+test("get_listing takes only a listingId and is read-only", () => {
+  const { shape, annotations } = registered().get("get_listing")!;
+  assert.deepEqual(sortedKeys(shape), ["listingId"]);
+  assert.equal(annotations?.readOnlyHint, true);
+});
+
+test("tool annotations flag reads vs. writes vs. consequential actions", () => {
+  const tools = registered();
+  const ann = (name: string) => tools.get(name)!.annotations ?? {};
+
+  // Reads are read-only.
+  assert.equal(ann("list_listings").readOnlyHint, true);
+  assert.equal(ann("get_listing").readOnlyHint, true);
+
+  // Writes are not read-only.
+  assert.equal(ann("create_listing").readOnlyHint, false);
+  assert.equal(ann("update_listing").readOnlyHint, false);
+
+  // Consequential / destructive actions are flagged so clients confirm.
+  assert.equal(ann("set_listing_status").destructiveHint, true);
+  assert.equal(ann("delete_listing").destructiveHint, true);
+
+  // Plain field updates are not flagged destructive.
+  assert.equal(ann("update_listing").destructiveHint, false);
 });
 
 test("create_listing exposes exactly the expected fields", () => {
@@ -111,6 +153,12 @@ test("update_listing exposes exactly the expected fields", () => {
     "smokingAllowed",
     "title",
   ]);
+});
+
+test("set_listing_status exposes listingId + status, matching contracts", () => {
+  const { shape } = registered().get("set_listing_status")!;
+  assert.deepEqual(sortedKeys(shape), ["listingId", "status"]);
+  assert.deepEqual(enumOptionsOf(shape.status), [...PUBLISH_STATUSES]);
 });
 
 test("delete_listing takes only a listingId", () => {
