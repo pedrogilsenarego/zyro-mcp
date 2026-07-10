@@ -7,6 +7,8 @@ import { GuestsApi } from "./modules/guests/api.js";
 import { registerGuestTools } from "./modules/guests/tools.js";
 import { PropertiesApi } from "./modules/properties/api.js";
 import { registerPropertyTools } from "./modules/properties/tools.js";
+import { PaymentsApi } from "./modules/payments/api.js";
+import { registerPaymentTools } from "./modules/payments/tools.js";
 
 /**
  * Composition root: builds an MCP server for a single request and registers
@@ -38,6 +40,7 @@ export function createMcpServer(
   registerListingTools(server, new ListingsApi(client), deps);
   registerGuestTools(server, new GuestsApi(client), deps);
   registerPropertyTools(server, new PropertiesApi(client), deps);
+  registerPaymentTools(server, new PaymentsApi(client), deps);
 
   return server;
 }
