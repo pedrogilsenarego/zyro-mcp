@@ -29,6 +29,18 @@ const houseFeaturesField = z
     `Shared-house amenities. Allowed keys: ${HOUSE_FEATURE_KEYS.join(", ")}.`,
   );
 
+const bedroomsField = z
+  .number()
+  .int()
+  .nonnegative()
+  .describe("Number of bedrooms in the property the room is in.");
+
+const bathroomsField = z
+  .number()
+  .int()
+  .nonnegative()
+  .describe("Number of bathrooms in the property the room is in.");
+
 export function registerListingTools(
   server: McpServer,
   api: ListingsApi,
@@ -76,6 +88,8 @@ export function registerListingTools(
       houseFeatures: houseFeaturesField,
       smokingAllowed: z.boolean().optional(),
       deposit: z.number().positive().optional().describe("Security deposit in EUR."),
+      bedrooms: bedroomsField.optional(),
+      bathrooms: bathroomsField.optional(),
     },
     authedHandler(
       deps,
@@ -161,6 +175,8 @@ export function registerListingTools(
         .nullable()
         .optional()
         .describe("Security deposit in EUR. Pass null to clear."),
+      bedrooms: bedroomsField.nullable().optional(),
+      bathrooms: bathroomsField.nullable().optional(),
     },
     authedHandler(
       deps,

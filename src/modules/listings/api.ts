@@ -2,11 +2,10 @@ import type { BackendClient, BackendResult } from "../../backend/client.js";
 import type {
   CreateListingBase,
   CreateListingInput,
-  HouseFeatureKey,
-  RoomFeatureKey,
+  UpdateListingInput,
 } from "../../generated/contracts.js";
 
-export type { CreateListingInput };
+export type { CreateListingInput, UpdateListingInput };
 
 // Raw BE fields toSummaries reads; the contract test asserts they still exist.
 export const LISTING_SOURCE_FIELDS = [
@@ -25,19 +24,6 @@ export const LISTING_SOURCE_FIELDS = [
 export type CreateListingArgs = CreateListingBase & {
   listingType?: "supply" | "demand";
   location?: string;
-};
-
-// Every field optional — a PATCH only sends what changes. The BE strips
-// id/userId itself and enforces edit access before applying the update.
-export type UpdateListingInput = {
-  title?: string;
-  rentPrice?: number;
-  salePrice?: number;
-  availableFrom?: string | null;
-  roomFeatures?: RoomFeatureKey[];
-  houseFeatures?: HouseFeatureKey[];
-  smokingAllowed?: boolean;
-  deposit?: number | null;
 };
 
 export type ListingSummary = {

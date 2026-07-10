@@ -138,6 +138,8 @@ test("createListing encodes optional fields (arrays JSON-stringified, dates, boo
       roomFeatures: ["desk"],
       smokingAllowed: true,
       deposit: 345,
+      bedrooms: 5,
+      bathrooms: 2,
     },
     "tok",
   );
@@ -147,6 +149,8 @@ test("createListing encodes optional fields (arrays JSON-stringified, dates, boo
   assert.equal(form.get("roomFeatures"), JSON.stringify(["desk"]));
   assert.equal(form.get("smokingAllowed"), "true");
   assert.equal(form.get("deposit"), "345");
+  assert.equal(form.get("bedrooms"), "5");
+  assert.equal(form.get("bathrooms"), "2");
 });
 
 test("updateListing sends a JSON PATCH with only the provided fields", async () => {

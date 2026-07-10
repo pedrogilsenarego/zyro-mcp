@@ -24,6 +24,8 @@ export type CreateListingBase = {
   houseFeatures?: HouseFeatureKey[];
   smokingAllowed?: boolean;
   deposit?: number;
+  bedrooms?: number;
+  bathrooms?: number;
 };
 
 export type CreateListingInput = CreateListingBase &
@@ -31,3 +33,20 @@ export type CreateListingInput = CreateListingBase &
     | { listingType?: "supply"; latitude: number; longitude: number }
     | { listingType: "demand"; locationCodes: string[] }
   );
+
+// A listing update is a partial PATCH — only changed fields are sent. Mirrors
+// CreateListingBase's editable fields, adds salePrice, and lets the clearable
+// columns be nulled. The BE strips id/userId and enforces edit access before
+// applying the update.
+export type UpdateListingInput = {
+  title?: string;
+  rentPrice?: number;
+  salePrice?: number;
+  availableFrom?: string | null;
+  roomFeatures?: RoomFeatureKey[];
+  houseFeatures?: HouseFeatureKey[];
+  smokingAllowed?: boolean;
+  deposit?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+};
