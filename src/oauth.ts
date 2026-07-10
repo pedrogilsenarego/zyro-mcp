@@ -24,13 +24,8 @@ interface StoredCode {
   expiresAt: number;
 }
 
-/**
- * File-backed OAuth client registry (Dynamic Client Registration). Registrations
- * are persisted to disk so they survive server restarts and redeploys — otherwise
- * every previously-registered client (Claude, etc.) breaks with `invalid_client`
- * on the next connection. For multi-instance deployments, back this with a shared
- * store (DB/Redis) so all instances see the same registrations.
- */
+// File-backed client registry so registrations survive restarts (else clients
+// break with `invalid_client`). Use a shared store for multi-instance deploys.
 class FileClientsStore implements OAuthRegisteredClientsStore {
   private clients = new Map<string, OAuthClientInformationFull>();
 

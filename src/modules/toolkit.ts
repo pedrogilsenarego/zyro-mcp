@@ -1,11 +1,9 @@
 import type { ToolDeps } from "./deps.js";
 
-/** MCP tool return shape (text content, optional error flag). */
 export interface ToolResult {
   content: { type: "text"; text: string }[];
   isError?: boolean;
-  // Structural compatibility with the SDK's CallToolResult (index signature).
-  [key: string]: unknown;
+  [key: string]: unknown; // structural compat with the SDK's CallToolResult
 }
 
 export function text(message: string): ToolResult {
@@ -21,11 +19,7 @@ export interface AuthedContext {
   userId: string | undefined;
 }
 
-/**
- * Wraps a tool handler with the auth guard every tool shares: resolves the
- * caller's token/userId from deps and short-circuits with "Not authenticated."
- * when the token is absent. The wrapped handler runs only with a valid context.
- */
+// Resolves the caller's token/userId and blocks the handler if unauthenticated.
 export function authedHandler<Args>(
   deps: ToolDeps,
   handler: (args: Args, ctx: AuthedContext) => Promise<ToolResult>,

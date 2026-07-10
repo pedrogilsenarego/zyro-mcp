@@ -18,6 +18,16 @@ export function registerListingTools(
       propertyType: z.string().describe("e.g. 'apartment', 'house', 'room'."),
       businessType: z.string().describe("e.g. 'roomRent' or 'buy'."),
       listingType: z.enum(["supply", "demand"]).optional(),
+      availableFrom: z
+        .string()
+        .optional()
+        .describe("ISO date the listing becomes available, e.g. '2026-07-17'."),
+      roomFeatures: z
+        .array(z.string())
+        .optional()
+        .describe("Room amenities, e.g. ['desk', 'wifi']."),
+      smokingAllowed: z.boolean().optional(),
+      deposit: z.number().positive().optional().describe("Security deposit in EUR."),
     },
     authedHandler(deps, async (args: CreateListingInput, { token }) => {
       const result = await api.createListing(args, token);

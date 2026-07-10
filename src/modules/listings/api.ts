@@ -1,11 +1,6 @@
 import type { BackendClient, BackendResult } from "../../backend/client.js";
 
-/**
- * Raw BE fields `toSummaries` reads. This list is the contract with the
- * backend — the contract test asserts a live response still carries them, so a
- * rename/removal on the BE fails loudly here instead of silently nulling a
- * column. Keep in sync with `toSummaries`.
- */
+// Raw BE fields toSummaries reads; the contract test asserts they still exist.
 export const LISTING_SOURCE_FIELDS = [
   "id",
   "reference",
@@ -25,9 +20,12 @@ export interface CreateListingInput {
   propertyType: string;
   businessType: string;
   listingType?: "supply" | "demand";
+  availableFrom?: string;
+  roomFeatures?: string[];
+  smokingAllowed?: boolean;
+  deposit?: number;
 }
 
-/** Assistant-facing subset of a listing (curated from the raw BE payload). */
 export interface ListingSummary {
   id: string;
   reference: string | null;
@@ -45,7 +43,6 @@ export type ListMyListingsResult =
   | { ok: true; status: number; listings: ListingSummary[] }
   | { ok: false; status: number; body: string };
 
-/** Thin HTTP calls for the listing domain. No business logic. */
 export class ListingsApi {
   constructor(private readonly client: BackendClient) {}
 
@@ -55,7 +52,9 @@ export class ListingsApi {
   ): Promise<BackendResult> {
     const form = new FormData();
     for (const [key, value] of Object.entries(input)) {
-      if (value !== undefined && value !== null) form.append(key, String(value));
+      if (value === undefined || value === null) continue;
+      // Arrays are JSON-stringified; the BE JSON.parses them.
+      form.append(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
     }
     return this.client.request("/listing/add", {
       method: "POST",
@@ -74,11 +73,6 @@ export class ListingsApi {
     );
   }
 
-  /**
-   * The caller's own (and shared-with) listings — includes drafts/inactive,
-   * excludes deleted. `userId` is resolved from the JWT, never a tool argument.
-   * Returns a curated summary per listing, not the raw BE payload.
-   */
   async listMyListings(
     userId: string,
     accessToken: string,
@@ -108,11 +102,9 @@ function toSummaries(body: string): ListingSummary[] {
     const r = row as Record<string, unknown>;
     const str = (v: unknown) => (v == null ? null : String(v));
     const businessType = str(r.businessType);
-    // realEstateType is denormalized and null for rooms, so fall back to "room"
-    // when the business is a room rental.
+    // realEstateType is null for rooms → fall back to "room".
     const propertyType =
-      str(r.realEstateType) ??
-      (businessType === "roomRent" ? "room" : null);
+      str(r.realEstateType) ?? (businessType === "roomRent" ? "room" : null);
     return {
       id: String(r.id ?? ""),
       reference: str(r.reference),

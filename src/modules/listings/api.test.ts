@@ -112,6 +112,31 @@ test("createListing posts a multipart form to /listing/add", async () => {
   assert.equal(form.get("listingType"), null);
 });
 
+test("createListing encodes optional fields (arrays JSON-stringified, dates, booleans)", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 201, body: "{}" });
+  const api = new ListingsApi(client);
+
+  await api.createListing(
+    {
+      title: "The 21 One Pilot",
+      rentPrice: 345,
+      propertyType: "room",
+      businessType: "roomRent",
+      availableFrom: "2026-07-17",
+      roomFeatures: ["desk"],
+      smokingAllowed: true,
+      deposit: 345,
+    },
+    "tok",
+  );
+
+  const form = calls[0].opts.body as FormData;
+  assert.equal(form.get("availableFrom"), "2026-07-17");
+  assert.equal(form.get("roomFeatures"), JSON.stringify(["desk"]));
+  assert.equal(form.get("smokingAllowed"), "true");
+  assert.equal(form.get("deposit"), "345");
+});
+
 test("deleteListing issues DELETE to the url-encoded listing path", async () => {
   const { client, calls } = capturingClient({ ok: true, status: 200, body: "" });
   const api = new ListingsApi(client);

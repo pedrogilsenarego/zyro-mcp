@@ -1,9 +1,5 @@
-/**
- * Low-level HTTP client for the imocerto backend — the single place that knows
- * the backend base URL and auth scheme. Domain modules build their calls on top
- * of `request()`. No business logic lives here; the backend enforces
- * access/plan/verification rules and we relay its response verbatim.
- */
+// Low-level HTTP client for the imocerto backend — the one place that knows its
+// base URL and auth scheme. Domain modules build their calls on top of request().
 
 export interface BackendResult {
   ok: boolean;
