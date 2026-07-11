@@ -13,16 +13,19 @@ import { EventsApi } from "./modules/events/api.js";
 import { registerEventTools } from "./modules/events/tools.js";
 import { UsersApi } from "./modules/users/api.js";
 import { registerUserTools } from "./modules/users/tools.js";
+import { AdminApi } from "./modules/admin/api.js";
+import { registerAdminTools } from "./modules/admin/tools.js";
+import { resolveRole, isAdminRole } from "./modules/identity.js";
 
 /**
  * Composition root: builds an MCP server for a single request and registers
  * each domain module's tools. `deps` carries the caller's identity, resolved
  * from the validated OAuth token — never from tool arguments.
  */
-export function createMcpServer(
+export async function createMcpServer(
   client: BackendClient,
   deps: ToolDeps,
-): McpServer {
+): Promise<McpServer> {
   const server = new McpServer(
     { name: "zyro-mcp", version: "0.0.1" },
     {
@@ -47,6 +50,14 @@ export function createMcpServer(
   registerPaymentTools(server, new PaymentsApi(client), deps);
   registerEventTools(server, new EventsApi(client), deps);
   registerUserTools(server, new UsersApi(client), deps);
+
+  // Admin-only tools are registered conditionally so non-admins never see them
+  // in the tool list. Role comes from /me (cached); the backend still enforces
+  // admin on every admin endpoint, so this is a UX gate, not the security one.
+  const role = await resolveRole(client, deps.getAccessToken(), deps.getUserId());
+  if (isAdminRole(role)) {
+    registerAdminTools(server, new AdminApi(client), deps);
+  }
 
   return server;
 }

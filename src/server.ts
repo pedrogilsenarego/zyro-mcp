@@ -99,7 +99,7 @@ app.post(
   async (req, res) => {
     const accessToken = req.auth?.token;
     const userId = req.auth?.extra?.userId as string | undefined;
-    const server = createMcpServer(backend, {
+    const server = await createMcpServer(backend, {
       getAccessToken: () => accessToken,
       getUserId: () => userId,
     });
