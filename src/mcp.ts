@@ -11,6 +11,8 @@ import { PaymentsApi } from "./modules/payments/api.js";
 import { registerPaymentTools } from "./modules/payments/tools.js";
 import { EventsApi } from "./modules/events/api.js";
 import { registerEventTools } from "./modules/events/tools.js";
+import { UsersApi } from "./modules/users/api.js";
+import { registerUserTools } from "./modules/users/tools.js";
 
 /**
  * Composition root: builds an MCP server for a single request and registers
@@ -44,6 +46,7 @@ export function createMcpServer(
   registerPropertyTools(server, new PropertiesApi(client), deps);
   registerPaymentTools(server, new PaymentsApi(client), deps);
   registerEventTools(server, new EventsApi(client), deps);
+  registerUserTools(server, new UsersApi(client), deps);
 
   return server;
 }
