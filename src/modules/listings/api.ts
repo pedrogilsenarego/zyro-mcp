@@ -204,7 +204,10 @@ export class ListingsApi {
     return { ok: true, status: res.status, listing: detail };
   }
 
-  async listMyListings(
+  // Lists a user's listings via GET /listing/user/:userId. For the caller's own
+  // id the backend returns every status; for any other user it returns only
+  // publicly active listings (curated to public fields — no owner/personal data).
+  async listListingsByUser(
     userId: string,
     accessToken: string,
   ): Promise<ListMyListingsResult> {

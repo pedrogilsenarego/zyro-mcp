@@ -87,10 +87,17 @@ test("registers exactly the listing tools", () => {
       "delete_listing",
       "get_listing",
       "list_listings",
+      "list_user_listings",
       "set_listing_status",
       "update_listing",
     ],
   );
+});
+
+test("list_user_listings takes a userId and is read-only", () => {
+  const { shape, annotations } = registered().get("list_user_listings")!;
+  assert.deepEqual(sortedKeys(shape), ["userId"]);
+  assert.equal(annotations?.readOnlyHint, true);
 });
 
 test("get_listing takes only a listingId and is read-only", () => {

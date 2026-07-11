@@ -150,7 +150,7 @@ export function registerListingTools(
     },
     authedHandler(deps, async (_args, { token, userId }) => {
       if (!userId) return errorText("Not authenticated.");
-      const result = await api.listMyListings(userId, token);
+      const result = await api.listListingsByUser(userId, token);
       if (!result.ok) {
         return errorText(
           `Could not fetch listings (status ${result.status}): ${result.body}`,
@@ -158,6 +158,43 @@ export function registerListingTools(
       }
       return text(
         `${result.listings.length} listing(s):\n${JSON.stringify(
+          result.listings,
+          null,
+          2,
+        )}`,
+      );
+    }),
+  );
+
+  server.tool(
+    "list_user_listings",
+    "List another user's PUBLIC listings by their user id (resolve a name/" +
+      "email to an id with find_users first). Returns only their publicly " +
+      "active listings — the same ones visible in the marketplace — as a " +
+      "curated summary per listing (id, reference, title, status, type, " +
+      "price). It never exposes drafts, inactive listings, or any personal " +
+      "account data; that fuller view is admin-only. To list your OWN listings " +
+      "(including drafts), use list_listings instead.",
+    {
+      userId: z
+        .string()
+        .min(1)
+        .describe("The target user's id (from find_users)."),
+    },
+    {
+      title: "List a user's public listings",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(deps, async ({ userId }: { userId: string }, { token }) => {
+      const result = await api.listListingsByUser(userId, token);
+      if (!result.ok) {
+        return errorText(
+          `Could not fetch the user's listings (status ${result.status}): ${result.body}`,
+        );
+      }
+      return text(
+        `${result.listings.length} public listing(s):\n${JSON.stringify(
           result.listings,
           null,
           2,

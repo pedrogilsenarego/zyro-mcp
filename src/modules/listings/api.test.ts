@@ -57,12 +57,12 @@ const RAW_ROWS = [
   },
 ];
 
-test("listMyListings maps the BE payload to curated summaries", async () => {
+test("listListingsByUser maps the BE payload to curated summaries", async () => {
   const api = new ListingsApi(
     fakeClient({ ok: true, status: 200, body: JSON.stringify({ data: RAW_ROWS }) }),
   );
 
-  const result = await api.listMyListings("user-1", "token");
+  const result = await api.listListingsByUser("user-1", "token");
   assert.equal(result.ok, true);
   if (!result.ok) return;
 
@@ -82,11 +82,11 @@ test("listMyListings maps the BE payload to curated summaries", async () => {
   assert.ok(!("energyCertificationEmission" in room));
 });
 
-test("listMyListings relays a backend error instead of throwing", async () => {
+test("listListingsByUser relays a backend error instead of throwing", async () => {
   const api = new ListingsApi(
     fakeClient({ ok: false, status: 403, body: "Forbidden" }),
   );
-  const result = await api.listMyListings("user-1", "token");
+  const result = await api.listListingsByUser("user-1", "token");
   assert.equal(result.ok, false);
   if (result.ok) return;
   assert.equal(result.status, 403);
