@@ -40,6 +40,32 @@ export type ListUserListingsResult =
     }
   | { ok: false; status: number; body: string };
 
+// Raw BE fields the property adapter reads off each row; the contract test
+// asserts they still exist on GET /admin/users/:userId/portfolios.
+export const ADMIN_PROPERTY_SOURCE_FIELDS = [
+  "id",
+  "title",
+  "latitude",
+  "longitude",
+  "marketValue",
+] as const;
+
+export interface AdminPropertySummary {
+  id: string;
+  title: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  marketValue: string | null;
+  // Convenience flag: the property has map coordinates (drives whether the
+  // Location card / map can render). Cheaper for the model than comparing
+  // latitude/longitude itself.
+  hasLocation: boolean;
+}
+
+export type ListUserPropertiesResult =
+  | { ok: true; status: number; properties: AdminPropertySummary[] }
+  | { ok: false; status: number; body: string };
+
 // Same shape create_listing builds, plus the free-text description (which the
 // BE create pipeline accepts but the non-admin tool doesn't yet send).
 export type AdminCreateListingInput = CreateListingInput & {
@@ -151,6 +177,26 @@ export class AdminApi {
     };
   }
 
+  // Lists any user's properties (houses/portfolios) via the admin backoffice
+  // endpoint, curated to id + title + coordinates + market value so an admin can
+  // find a property's id and see whether it has a location. Admin-gated by the
+  // backend — a non-admin token gets a 403 we relay verbatim.
+  async listUserProperties(
+    userId: string,
+    accessToken: string,
+  ): Promise<ListUserPropertiesResult> {
+    const res = await this.client.request(
+      `/admin/users/${encodeURIComponent(userId)}/portfolios`,
+      { accessToken },
+    );
+    if (!res.ok) return { ok: false, status: res.status, body: res.body };
+    return {
+      ok: true,
+      status: res.status,
+      properties: toPropertySummaries(res.body),
+    };
+  }
+
   // Updates any property by id via the admin backoffice endpoint
   // (PUT /admin/portfolios/:id). The backend resolves the owner from the
   // property id and runs the owner's own update path, so there's no separate
@@ -171,6 +217,35 @@ export class AdminApi {
       },
     );
   }
+}
+
+function toPropertySummaries(body: string): AdminPropertySummary[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return [];
+  }
+  const rows = Array.isArray(parsed)
+    ? parsed
+    : ((parsed as { data?: unknown })?.data ?? []);
+  if (!Array.isArray(rows)) return [];
+
+  const str = (v: unknown) => (v == null || v === "" ? null : String(v));
+
+  return rows.map((row): AdminPropertySummary => {
+    const r = row as Record<string, unknown>;
+    const latitude = str(r.latitude);
+    const longitude = str(r.longitude);
+    return {
+      id: String(r.id ?? ""),
+      title: str(r.title),
+      latitude,
+      longitude,
+      marketValue: str(r.marketValue),
+      hasLocation: latitude != null && longitude != null,
+    };
+  });
 }
 
 function toSummaries(body: string): {

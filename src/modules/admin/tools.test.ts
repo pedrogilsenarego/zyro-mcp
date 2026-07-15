@@ -42,8 +42,19 @@ const sortedKeys = (shape: Record<string, unknown>) => Object.keys(shape).sort()
 test("registers exactly the admin tools", () => {
   assert.deepEqual(
     [...registered().keys()].sort(),
-    ["admin_create_listing", "admin_list_user_listings", "admin_update_property"],
+    [
+      "admin_create_listing",
+      "admin_list_user_listings",
+      "admin_list_user_properties",
+      "admin_update_property",
+    ],
   );
+});
+
+test("admin_list_user_properties is read-only and takes just userId", () => {
+  const { shape, annotations } = registered().get("admin_list_user_properties")!;
+  assert.deepEqual(sortedKeys(shape), ["userId"]);
+  assert.equal(annotations?.readOnlyHint, true);
 });
 
 test("admin_update_property is a write keyed by propertyId, no userId needed", () => {

@@ -227,6 +227,53 @@ test("downloadImages skips non-image content types", async () => {
   assert.deepEqual(failed, ["https://host/page.html"]);
 });
 
+test("listUserProperties curates coords + derives hasLocation", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({
+      data: [
+        { id: "p1", title: "With loc", latitude: "38.7", longitude: "-9.1", marketValue: "250000" },
+        { id: "p2", title: "No loc", latitude: null, longitude: null },
+      ],
+    }),
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.listUserProperties("user-1", "tok");
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  assert.equal(calls[0].path, "/admin/users/user-1/portfolios");
+  assert.equal(calls[0].opts.method, undefined);
+  assert.deepEqual(result.properties, [
+    {
+      id: "p1",
+      title: "With loc",
+      latitude: "38.7",
+      longitude: "-9.1",
+      marketValue: "250000",
+      hasLocation: true,
+    },
+    {
+      id: "p2",
+      title: "No loc",
+      latitude: null,
+      longitude: null,
+      marketValue: null,
+      hasLocation: false,
+    },
+  ]);
+});
+
+test("listUserProperties relays a 403 (non-admin) instead of throwing", async () => {
+  const api = new AdminApi(fakeClient({ ok: false, status: 403, body: "Forbidden" }));
+  const result = await api.listUserProperties("user-1", "tok");
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.status, 403);
+});
+
 test("updatePropertyForUser PUTs the fields as JSON to /admin/portfolios/:id", async () => {
   const { client, calls } = capturingClient({
     ok: true,

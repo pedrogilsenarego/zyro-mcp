@@ -70,6 +70,41 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_list_user_properties",
+    "ADMIN ONLY. List a given user's properties (houses/portfolios) with their " +
+      "id, title, coordinates and market value. Use this to find a property's " +
+      "id and to check whether it has a location set — `hasLocation` is false " +
+      "when the property has no map coordinates, which is why its Location card " +
+      "and map don't render. Pass the user's id (resolve a name/email with " +
+      "find_users first). Pair with admin_update_property to fix a missing " +
+      "location or value.",
+    {
+      userId: z
+        .string()
+        .min(1)
+        .describe("The target user's id (from find_users)."),
+    },
+    {
+      title: "Admin: list a user's properties",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(deps, async ({ userId }: { userId: string }, { token }) => {
+      const result = await api.listUserProperties(userId, token);
+      if (!result.ok) {
+        return errorText(
+          `Could not list the user's properties (status ${result.status}): ${result.body}`,
+        );
+      }
+      return text(
+        `${result.properties.length} propert${
+          result.properties.length === 1 ? "y" : "ies"
+        }:\n${JSON.stringify(result.properties, null, 2)}`,
+      );
+    }),
+  );
+
+  server.tool(
     "admin_create_listing",
     "ADMIN ONLY. Create a room-rental listing ON BEHALF OF another user — the " +
       "listing is owned by that user, not by you. Use this when an admin asks " +
