@@ -55,8 +55,9 @@ export const referenceField = z
   .string()
   .min(1)
   .describe(
-    "Custom reference/id for the listing — e.g. the source site's room code. " +
-      "Defaults to an auto-generated 'IMO-…' reference if omitted.",
+    "The listing's reference. For an imported listing pass the source id (e.g. " +
+      "the site's room code) — it's stored directly as the reference, like the " +
+      "feed importers do. Omit to get an auto-generated 'IMO-…' reference.",
   );
 
 export function registerListingTools(
