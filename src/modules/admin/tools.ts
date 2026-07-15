@@ -238,6 +238,13 @@ export function registerAdminTools(
             "under its house, so the property's room shows the listing instead " +
             "of 'No listing associated'.",
         ),
+      status: z
+        .enum(["active", "draft", "inactive"])
+        .optional()
+        .describe(
+          "Initial publish status. Defaults to 'active' (publicly live). Use " +
+            "'draft' to create it hidden for review before publishing.",
+        ),
     },
     {
       title: "Admin: create listing for a user",
@@ -256,6 +263,7 @@ export function registerAdminTools(
           description,
           images,
           unitId,
+          status,
           ...base
         }: {
           userId: string;
@@ -263,6 +271,7 @@ export function registerAdminTools(
           description?: string;
           images?: string[];
           unitId?: string;
+          status?: "active" | "draft" | "inactive";
         } & Omit<AdminCreateListingInput, "latitude" | "longitude" | "listingType">,
         { token },
       ) => {
@@ -272,15 +281,19 @@ export function registerAdminTools(
             `Could not find a location for "${location}". Try a more specific place name (town + country).`,
           );
         }
-        // `resourceId` is the form field the BE create reads to link the
-        // listing to a unit (see createListingForUser in the BE controller).
-        const input: AdminCreateListingInput & { resourceId?: string } = {
+        // `resourceId` links the listing to a unit; `isPublished` sets the
+        // initial status — both are form fields the BE create reads directly.
+        const input: AdminCreateListingInput & {
+          resourceId?: string;
+          isPublished?: string;
+        } = {
           ...base,
           description,
           listingType: "supply",
           latitude: geo.lat,
           longitude: geo.lon,
           ...(unitId ? { resourceId: unitId } : {}),
+          ...(status ? { isPublished: status } : {}),
         };
         const result = await api.createListingForUser(
           userId,
