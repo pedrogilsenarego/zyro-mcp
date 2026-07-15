@@ -309,6 +309,85 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_update_listing",
+    "ADMIN ONLY. Update fields on ANY listing by id — including one owned by " +
+      "another user (the backend resolves the owner from the id). Use this to " +
+      "fix an imported listing in place rather than recreating it — e.g. set " +
+      "`availableFrom`, correct the price/title, or replace amenities. Only the " +
+      "fields you pass change. roomFeatures/houseFeatures REPLACE the whole " +
+      "array — read the current values (admin_get_listing) first so a partial " +
+      "change doesn't drop existing amenities. Note: `reference` is set at " +
+      "create time and is not editable here.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+      title: z.string().min(1).optional(),
+      rentPrice: z.number().positive().optional().describe("Monthly rent in EUR."),
+      availableFrom: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("ISO date the listing becomes available, e.g. '2026-07-17'. Pass null to clear."),
+      deposit: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Security deposit in EUR. Pass null to clear."),
+      roomFeatures: z
+        .array(z.enum(ROOM_FEATURE_KEYS))
+        .optional()
+        .describe(`Room amenities (replaces the whole array). Allowed keys: ${ROOM_FEATURE_KEYS.join(", ")}.`),
+      houseFeatures: z
+        .array(z.enum(HOUSE_FEATURE_KEYS))
+        .optional()
+        .describe(`Shared-house amenities (replaces the whole array). Allowed keys: ${HOUSE_FEATURE_KEYS.join(", ")}.`),
+      smokingAllowed: z.boolean().optional(),
+      bedrooms: z.number().int().nonnegative().nullable().optional(),
+      bathrooms: z.number().int().nonnegative().nullable().optional(),
+      propertyUrl: z
+        .string()
+        .url()
+        .nullable()
+        .optional()
+        .describe("Source URL of the listing. Pass null to clear."),
+    },
+    {
+      title: "Admin: update a user's listing",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async (
+        { listingId, ...fields }: { listingId: string } & Record<string, unknown>,
+        { token },
+      ) => {
+        const input: Record<string, unknown> = {};
+        for (const [key, val] of Object.entries(fields)) {
+          if (val !== undefined) input[key] = val;
+        }
+        if (Object.keys(input).length === 0) {
+          return errorText(
+            "Nothing to update — pass at least one field (e.g. availableFrom or rentPrice).",
+          );
+        }
+        const result = await api.updateListingForUser(
+          listingId,
+          input as Parameters<AdminApi["updateListingForUser"]>[1],
+          token,
+        );
+        return result.ok
+          ? text(`Listing ${listingId} updated.\n${result.body}`)
+          : errorText(
+              `Admin listing update failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
     "admin_create_property",
     "ADMIN ONLY. Create a property (a house/portfolio) ON BEHALF OF another " +
       "user — the property is owned by that user, not by you. Use this when an " +

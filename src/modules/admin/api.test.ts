@@ -378,6 +378,36 @@ test("createPropertyForUser relays a 403 (non-admin) instead of throwing", async
   assert.equal(result.body, "Forbidden");
 });
 
+test("updateListingForUser PATCHes the fields as JSON to /admin/listings/:id", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { id: "listing-9" } }),
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.updateListingForUser(
+    "listing-9",
+    { availableFrom: "2026-07-15" },
+    "admin-tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/admin/listings/listing-9");
+  assert.equal(calls[0].opts.method, "PATCH");
+  assert.equal(calls[0].opts.accessToken, "admin-tok");
+  assert.equal(calls[0].opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), { availableFrom: "2026-07-15" });
+});
+
+test("updateListingForUser relays a 403 (non-admin) instead of throwing", async () => {
+  const api = new AdminApi(fakeClient({ ok: false, status: 403, body: "Forbidden" }));
+  const result = await api.updateListingForUser("listing-9", { title: "X" }, "tok");
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+});
+
 test("updatePropertyForUser relays a 403 (non-admin) instead of throwing", async () => {
   const api = new AdminApi(
     fakeClient({ ok: false, status: 403, body: "Forbidden" }),

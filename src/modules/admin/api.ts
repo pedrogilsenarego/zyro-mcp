@@ -1,6 +1,7 @@
 import type { BackendClient, BackendResult } from "../../backend/client.js";
 import type {
   CreateListingInput,
+  UpdateListingInput,
   UpdatePropertyInput,
 } from "../../generated/contracts.js";
 import { buildPropertyForm, type CreatePropertyInput } from "../properties/api.js";
@@ -227,6 +228,27 @@ export class AdminApi {
       accessToken,
       body: form,
     });
+  }
+
+  // Updates any listing by id via the admin backoffice endpoint
+  // (PATCH /admin/listings/:id). The backend resolves the owner from the listing
+  // id and runs the owner's own update path, so there's no separate write
+  // behaviour to drift. Sent as JSON (the BE reads c.req.json()). Admin-gated —
+  // a non-admin token gets a 403 we relay verbatim.
+  updateListingForUser(
+    listingId: string,
+    input: UpdateListingInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/listings/${encodeURIComponent(listingId)}`,
+      {
+        method: "PATCH",
+        accessToken,
+        body: JSON.stringify(input),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   // Updates any property by id via the admin backoffice endpoint
