@@ -30,6 +30,7 @@ export const PROPERTY_ROOM_UNIT_TYPE = "1";
 // place name in the tool layer (the BE reverse-resolves the freguesia from them).
 export type CreatePropertyInput = {
   title: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   bedrooms?: number;
@@ -48,6 +49,9 @@ export type CreatePropertyInput = {
 export function buildPropertyForm(input: CreatePropertyInput): FormData {
   const form = new FormData();
   form.append("title", input.title);
+  if (input.description !== undefined) {
+    form.append("description", input.description);
+  }
 
   const scalars: Record<string, unknown> = {
     latitude: input.latitude,

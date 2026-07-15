@@ -353,6 +353,12 @@ export function registerAdminTools(
     {
       propertyId: z.string().min(1).describe("The property's id (UUID)."),
       title: z.string().min(1).optional(),
+      description: z
+        .string()
+        .optional()
+        .describe(
+          "Free-text description of the house (the 'about this property' blurb).",
+        ),
       location: z
         .string()
         .min(1)
@@ -395,6 +401,7 @@ export function registerAdminTools(
           propertyId: string;
           location?: string;
           title?: string;
+          description?: string;
           marketValue?: number | null;
           bedrooms?: number | null;
           bathrooms?: number | null;

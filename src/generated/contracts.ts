@@ -67,6 +67,7 @@ export type UpdateListingInput = {
 // owner's own update and the admin cross-user update.
 export type UpdatePropertyInput = {
   title?: string;
+  description?: string;
   marketValue?: number | null;
   bedrooms?: number | null;
   bathrooms?: number | null;

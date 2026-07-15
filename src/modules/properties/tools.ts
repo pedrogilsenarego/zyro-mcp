@@ -17,6 +17,12 @@ export const CREATE_PROPERTY_FIELDS = {
     .string()
     .min(1)
     .describe("The property/house name, e.g. 'Casa Passos Manuel'."),
+  description: z
+    .string()
+    .optional()
+    .describe(
+      "Free-text description of the house (the 'about this property' blurb).",
+    ),
   location: z
     .string()
     .min(1)
@@ -53,6 +59,7 @@ export const CREATE_PROPERTY_FIELDS = {
 
 export type CreatePropertyArgs = {
   title: string;
+  description?: string;
   location?: string;
   rooms?: string[];
   marketValue?: number;
@@ -71,6 +78,7 @@ export async function buildCreateInput(
   token: string,
 ): Promise<{ value: CreatePropertyInput } | { error: string }> {
   const value: CreatePropertyInput = { title: rest.title };
+  if (rest.description !== undefined) value.description = rest.description;
   if (rest.rooms) value.rooms = rest.rooms;
   if (rest.marketValue !== undefined) value.marketValue = rest.marketValue;
   if (rest.generatesIncome !== undefined)
@@ -174,6 +182,12 @@ export function registerPropertyTools(
     {
       propertyId: z.string().min(1).describe("The property's id (UUID)."),
       title: z.string().min(1).optional(),
+      description: z
+        .string()
+        .optional()
+        .describe(
+          "Free-text description of the house (the 'about this property' blurb).",
+        ),
       location: z
         .string()
         .min(1)
@@ -234,6 +248,7 @@ type UpdatePropertyArgs = {
   propertyId: string;
   location?: string;
   title?: string;
+  description?: string;
   marketValue?: number | null;
   bedrooms?: number | null;
   bathrooms?: number | null;
