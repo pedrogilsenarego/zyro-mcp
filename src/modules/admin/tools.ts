@@ -4,6 +4,7 @@ import type { ToolDeps } from "../deps.js";
 import { authedHandler, text, errorText } from "../toolkit.js";
 import { AdminApi, type AdminCreateListingInput } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
+import { buildUpdateInput } from "../properties/tools.js";
 import {
   HOUSE_FEATURE_KEYS,
   PROPERTY_TYPES,
@@ -206,6 +207,90 @@ export function registerAdminTools(
         return text(
           `Listing created for user ${userId}.${imageNote}\n${result.body}`,
         );
+      },
+    ),
+  );
+
+  server.tool(
+    "admin_update_property",
+    "ADMIN ONLY. Update a property (house/portfolio) OWNED BY another user, by " +
+      "property id — the backend resolves the owner from the id, so no user id " +
+      "is needed. Use this when an admin needs to fix another user's property, " +
+      "e.g. setting its location so the map/Location card appears, or its market " +
+      "value. Get the property id from admin listing/portfolio lookups. Only the " +
+      "fields you pass change.\n\n" +
+      "Pass `location` (a place name) to set the map position — it is geocoded. " +
+      "Pass `marketValue` (EUR) for the portfolio-value card. houseFeatures " +
+      "REPLACES the whole array. Relay any backend permission error verbatim.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+      title: z.string().min(1).optional(),
+      location: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Place name of the property, e.g. 'Avenidas Novas, Lisboa, Portugal'. " +
+            "Geocoded so the property's map/Location card appears.",
+        ),
+      marketValue: z
+        .number()
+        .nonnegative()
+        .nullable()
+        .optional()
+        .describe("Estimated market value in EUR. Pass null to clear."),
+      bedrooms: z.number().int().nonnegative().nullable().optional(),
+      bathrooms: z.number().int().nonnegative().nullable().optional(),
+      houseFeatures: z
+        .array(z.enum(HOUSE_FEATURE_KEYS))
+        .optional()
+        .describe(
+          `Shared-house amenities (replaces the whole array). Allowed keys: ${HOUSE_FEATURE_KEYS.join(", ")}.`,
+        ),
+    },
+    {
+      title: "Admin: update a user's property",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      // Geocoding hits an external service when `location` is passed.
+      openWorldHint: true,
+    },
+    authedHandler(
+      deps,
+      async (
+        {
+          propertyId,
+          location,
+          ...rest
+        }: {
+          propertyId: string;
+          location?: string;
+          title?: string;
+          marketValue?: number | null;
+          bedrooms?: number | null;
+          bathrooms?: number | null;
+          houseFeatures?: (typeof HOUSE_FEATURE_KEYS)[number][];
+        },
+        { token },
+      ) => {
+        const input = await buildUpdateInput(rest, location, listingsApi, token);
+        if ("error" in input) return errorText(input.error);
+        if (Object.keys(input.value).length === 0) {
+          return errorText(
+            "Nothing to update — pass at least one field (e.g. location or marketValue).",
+          );
+        }
+        const result = await api.updatePropertyForUser(
+          propertyId,
+          input.value,
+          token,
+        );
+        return result.ok
+          ? text(`Property ${propertyId} updated.\n${result.body}`)
+          : errorText(
+              `Admin property update failed (status ${result.status}): ${result.body}`,
+            );
       },
     ),
   );

@@ -227,6 +227,43 @@ test("downloadImages skips non-image content types", async () => {
   assert.deepEqual(failed, ["https://host/page.html"]);
 });
 
+test("updatePropertyForUser PUTs the fields as JSON to /admin/portfolios/:id", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { id: "prop-9" } }),
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.updatePropertyForUser(
+    "prop-9",
+    { latitude: 38.72, longitude: -9.14, marketValue: 300000 },
+    "admin-tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/admin/portfolios/prop-9");
+  assert.equal(calls[0].opts.method, "PUT");
+  assert.equal(calls[0].opts.accessToken, "admin-tok");
+  assert.equal(calls[0].opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), {
+    latitude: 38.72,
+    longitude: -9.14,
+    marketValue: 300000,
+  });
+});
+
+test("updatePropertyForUser relays a 403 (non-admin) instead of throwing", async () => {
+  const api = new AdminApi(
+    fakeClient({ ok: false, status: 403, body: "Forbidden" }),
+  );
+  const result = await api.updatePropertyForUser("prop-9", { title: "X" }, "tok");
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.equal(result.body, "Forbidden");
+});
+
 /**
  * Contract test — guards against BE drift. GET /admin/listings is admin-gated,
  * so it needs a running backend AND an ADMIN token. Skipped unless

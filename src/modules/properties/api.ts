@@ -1,4 +1,7 @@
-import type { BackendClient } from "../../backend/client.js";
+import type { BackendClient, BackendResult } from "../../backend/client.js";
+import type { UpdatePropertyInput } from "../../generated/contracts.js";
+
+export type { UpdatePropertyInput };
 
 // Raw BE fields the adapter reads off each property row; the contract test
 // asserts they still exist on GET /property.
@@ -48,6 +51,22 @@ export class PropertiesApi {
     });
     if (!res.ok) return { ok: false, status: res.status, body: res.body };
     return { ok: true, status: res.status, properties: toSummaries(res.body) };
+  }
+
+  // Updates the caller's own property (house/portfolio). Identity comes from the
+  // token — PUT /property/:id asserts edit access itself. Only the passed fields
+  // change. Sent as JSON (the BE reads c.req.json()).
+  updateProperty(
+    propertyId: string,
+    input: UpdatePropertyInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(`/property/${encodeURIComponent(propertyId)}`, {
+      method: "PUT",
+      accessToken,
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
 

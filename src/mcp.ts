@@ -51,7 +51,7 @@ export async function createMcpServer(
   const listingsApi = new ListingsApi(client);
   registerListingTools(server, listingsApi, deps);
   registerGuestTools(server, new GuestsApi(client), deps);
-  registerPropertyTools(server, new PropertiesApi(client), deps);
+  registerPropertyTools(server, new PropertiesApi(client), listingsApi, deps);
   registerPaymentTools(server, new PaymentsApi(client), deps);
   registerEventTools(server, new EventsApi(client), deps);
   registerUserTools(server, new UsersApi(client), deps);

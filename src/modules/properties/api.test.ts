@@ -147,6 +147,43 @@ test("listProperties returns empty on unparseable body rather than throwing", as
   assert.deepEqual(result.properties, []);
 });
 
+test("updateProperty PUTs only the passed fields as JSON to /property/:id", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { id: "prop-1" } }),
+  });
+  const api = new PropertiesApi(client);
+
+  const result = await api.updateProperty(
+    "prop-1",
+    { marketValue: 250000, latitude: 38.7, longitude: -9.1 },
+    "tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/property/prop-1");
+  assert.equal(calls[0].opts.method, "PUT");
+  assert.equal(calls[0].opts.accessToken, "tok");
+  assert.equal(calls[0].opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), {
+    marketValue: 250000,
+    latitude: 38.7,
+    longitude: -9.1,
+  });
+});
+
+test("updateProperty relays a backend permission error instead of throwing", async () => {
+  const api = new PropertiesApi(
+    fakeClient({ ok: false, status: 403, body: "Forbidden" }),
+  );
+  const result = await api.updateProperty("prop-1", { title: "X" }, "tok");
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.equal(result.body, "Forbidden");
+});
+
 /**
  * Contract test — guards against BE drift. GET /property is authed, so this
  * needs a running backend AND a valid token; skipped unless both

@@ -1,5 +1,8 @@
-import type { BackendClient } from "../../backend/client.js";
-import type { CreateListingInput } from "../../generated/contracts.js";
+import type { BackendClient, BackendResult } from "../../backend/client.js";
+import type {
+  CreateListingInput,
+  UpdatePropertyInput,
+} from "../../generated/contracts.js";
 
 // Raw BE fields the adapter reads off each admin listing row; the contract test
 // asserts they still exist on GET /admin/listings.
@@ -146,6 +149,27 @@ export class AdminApi {
       imagesAttached: files.length,
       imagesFailed: failed,
     };
+  }
+
+  // Updates any property by id via the admin backoffice endpoint
+  // (PUT /admin/portfolios/:id). The backend resolves the owner from the
+  // property id and runs the owner's own update path, so there's no separate
+  // write behaviour to drift. Admin-gated by the backend — a non-admin token
+  // gets a 403 we relay verbatim.
+  updatePropertyForUser(
+    propertyId: string,
+    input: UpdatePropertyInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/portfolios/${encodeURIComponent(propertyId)}`,
+      {
+        method: "PUT",
+        accessToken,
+        body: JSON.stringify(input),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 

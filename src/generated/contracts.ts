@@ -55,3 +55,20 @@ export type UpdateListingInput = {
   reference?: string;
   propertyUrl?: string | null;
 };
+
+// Fields the property (house/portfolio) update accepts. Passing latitude +
+// longitude sets the property's map location (the BE reverse-resolves the
+// freguesia); marketValue drives the portfolio-value card. Same shape for the
+// owner's own update and the admin cross-user update.
+export type UpdatePropertyInput = {
+  title?: string;
+  marketValue?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  houseFeatures?: HouseFeatureKey[];
+  latitude?: number;
+  longitude?: number;
+  parishName?: string;
+  municipalityName?: string;
+  districtName?: string;
+};
