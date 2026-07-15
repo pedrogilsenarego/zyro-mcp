@@ -4,6 +4,7 @@ import type { ToolDeps } from "../deps.js";
 import { authedHandler, text, errorText } from "../toolkit.js";
 import { AdminApi, type AdminCreateListingInput } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
+import { propertyUrlField } from "../listings/tools.js";
 import {
   buildUpdateInput,
   buildCreateInput,
@@ -180,6 +181,7 @@ export function registerAdminTools(
         .string()
         .optional()
         .describe("Free-text listing description."),
+      propertyUrl: propertyUrlField.optional(),
       availableFrom: z
         .string()
         .optional()

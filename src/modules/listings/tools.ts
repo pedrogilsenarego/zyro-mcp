@@ -42,6 +42,15 @@ const bathroomsField = z
   .nonnegative()
   .describe("Number of bathrooms in the property the room is in.");
 
+export const propertyUrlField = z
+  .string()
+  .url()
+  .describe(
+    "Canonical/source URL of this listing on an external site (e.g. the " +
+      "original room page it was imported from). Stored as the listing's " +
+      "propertyUrl.",
+  );
+
 export function registerListingTools(
   server: McpServer,
   api: ListingsApi,
@@ -85,6 +94,7 @@ export function registerListingTools(
         .string()
         .optional()
         .describe("ISO date the listing becomes available, e.g. '2026-07-17'."),
+      propertyUrl: propertyUrlField.optional(),
       roomFeatures: roomFeaturesField,
       houseFeatures: houseFeaturesField,
       smokingAllowed: z.boolean().optional(),
