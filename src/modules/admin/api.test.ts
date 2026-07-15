@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { BackendClient } from "../../backend/client.js";
-import { AdminApi, ADMIN_LISTING_SOURCE_FIELDS } from "./api.js";
+import { AdminApi, ADMIN_LISTING_SOURCE_FIELDS, downloadImages } from "./api.js";
 
 /** Minimal fake client that returns a canned response for any request. */
 function fakeClient(response: {
@@ -125,6 +125,106 @@ test("listUserListings returns empty on unparseable body rather than throwing", 
   if (!result.ok) return;
   assert.deepEqual(result.listings, []);
   assert.equal(result.total, 0);
+});
+
+test("createListingForUser POSTs the owner id + fields as multipart to /admin/listings", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: '{"data":{"id":"new-1"}}',
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.createListingForUser(
+    "owner-9",
+    {
+      title: "Quarto Erasmus",
+      rentPrice: 450,
+      propertyType: "room",
+      businessType: "roomRent",
+      description: "Bright room near the university.",
+      roomFeatures: ["desk", "wardrobe"],
+      listingType: "supply",
+      latitude: 38.7,
+      longitude: -9.1,
+    },
+    [],
+    "admin-tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.imagesAttached, 0);
+  assert.deepEqual(result.imagesFailed, []);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/admin/listings");
+  assert.equal(calls[0].opts.method, "POST");
+  assert.equal(calls[0].opts.accessToken, "admin-tok");
+
+  const form = calls[0].opts.body as FormData;
+  // Owner comes through as the `userId` field the BE reads.
+  assert.equal(form.get("userId"), "owner-9");
+  assert.equal(form.get("title"), "Quarto Erasmus");
+  assert.equal(form.get("rentPrice"), "450");
+  assert.equal(form.get("description"), "Bright room near the university.");
+  // Arrays are JSON-stringified for the multipart form.
+  assert.equal(form.get("roomFeatures"), '["desk","wardrobe"]');
+});
+
+test("createListingForUser attaches fetched images and reports failures", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: '{"data":{"id":"new-2"}}',
+  });
+  const api = new AdminApi(client);
+
+  const fakeFetch = async (url: string): Promise<Response> =>
+    url.includes("good")
+      ? new Response(new Blob([new Uint8Array([1, 2, 3])]), {
+          headers: { "content-type": "image/jpeg" },
+        })
+      : new Response("nope", { status: 404 });
+
+  const result = await api.createListingForUser(
+    "owner-9",
+    {
+      title: "Room",
+      rentPrice: 400,
+      propertyType: "room",
+      businessType: "roomRent",
+      listingType: "supply",
+      latitude: 38.7,
+      longitude: -9.1,
+    },
+    ["https://host/good.jpg", "https://host/bad.jpg"],
+    "admin-tok",
+    fakeFetch,
+  );
+
+  assert.equal(result.imagesAttached, 1);
+  assert.deepEqual(result.imagesFailed, ["https://host/bad.jpg"]);
+
+  const form = calls[0].opts.body as FormData;
+  assert.equal(form.getAll("images").length, 1);
+});
+
+test("downloadImages skips non-image content types", async () => {
+  const fakeFetch = async (url: string): Promise<Response> =>
+    url.includes("html")
+      ? new Response("<html>", { headers: { "content-type": "text/html" } })
+      : new Response(new Blob([new Uint8Array([9])]), {
+          headers: { "content-type": "image/png" },
+        });
+
+  const { files, failed } = await downloadImages(
+    ["https://host/page.html", "https://host/pic.png"],
+    fakeFetch,
+  );
+
+  assert.equal(files.length, 1);
+  assert.equal(files[0].filename, "image-2.png");
+  assert.deepEqual(failed, ["https://host/page.html"]);
 });
 
 /**

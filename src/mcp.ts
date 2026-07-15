@@ -40,11 +40,16 @@ export async function createMcpServer(
         "A user sees both their own resources and ones shared with them, but can",
         "only modify what they own or were granted edit access to. A permission",
         "error on a write means they have view-only access — tell them that.",
+        "",
+        "The only exception to identity-from-token are the admin-only tools",
+        "(named admin_*), which take an explicit target user id — use them just",
+        "to act on another user's behalf when an admin asks, never otherwise.",
       ].join("\n"),
     },
   );
 
-  registerListingTools(server, new ListingsApi(client), deps);
+  const listingsApi = new ListingsApi(client);
+  registerListingTools(server, listingsApi, deps);
   registerGuestTools(server, new GuestsApi(client), deps);
   registerPropertyTools(server, new PropertiesApi(client), deps);
   registerPaymentTools(server, new PaymentsApi(client), deps);
@@ -56,7 +61,7 @@ export async function createMcpServer(
   // admin on every admin endpoint, so this is a UX gate, not the security one.
   const role = await resolveRole(client, deps.getAccessToken(), deps.getUserId());
   if (isAdminRole(role)) {
-    registerAdminTools(server, new AdminApi(client), deps);
+    registerAdminTools(server, new AdminApi(client), listingsApi, deps);
   }
 
   return server;
