@@ -51,6 +51,15 @@ export const ADMIN_PROPERTY_SOURCE_FIELDS = [
   "marketValue",
 ] as const;
 
+export interface AdminPropertyUnitSummary {
+  id: string;
+  title: string | null;
+  // The listing (realEstate) currently associated to this unit, or null when
+  // the room shows "No listing associated". Pass a unit's id as `unitId` to
+  // admin_create_listing to link a new advert to it.
+  listingId: string | null;
+}
+
 export interface AdminPropertySummary {
   id: string;
   title: string | null;
@@ -61,6 +70,9 @@ export interface AdminPropertySummary {
   // Location card / map can render). Cheaper for the model than comparing
   // latitude/longitude itself.
   hasLocation: boolean;
+  // Rentable units (rooms), flattened across the property's businesses, with
+  // whether each already has a listing associated.
+  units: AdminPropertyUnitSummary[];
 }
 
 export type ListUserPropertiesResult =
@@ -257,6 +269,20 @@ function toPropertySummaries(body: string): AdminPropertySummary[] {
     const r = row as Record<string, unknown>;
     const latitude = str(r.latitude);
     const longitude = str(r.longitude);
+    const businesses = Array.isArray(r.businesses) ? r.businesses : [];
+    const units: AdminPropertyUnitSummary[] = [];
+    for (const b of businesses) {
+      const bizUnits = (b as Record<string, unknown>)?.units;
+      if (!Array.isArray(bizUnits)) continue;
+      for (const u of bizUnits) {
+        const unit = u as Record<string, unknown>;
+        units.push({
+          id: String(unit.id ?? ""),
+          title: str(unit.title),
+          listingId: str(unit.realEstateId),
+        });
+      }
+    }
     return {
       id: String(r.id ?? ""),
       title: str(r.title),
@@ -264,6 +290,7 @@ function toPropertySummaries(body: string): AdminPropertySummary[] {
       longitude,
       marketValue: str(r.marketValue),
       hasLocation: latitude != null && longitude != null,
+      units,
     };
   });
 }

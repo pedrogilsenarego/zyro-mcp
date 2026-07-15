@@ -254,6 +254,7 @@ test("listUserProperties curates coords + derives hasLocation", async () => {
       longitude: "-9.1",
       marketValue: "250000",
       hasLocation: true,
+      units: [],
     },
     {
       id: "p2",
@@ -262,7 +263,41 @@ test("listUserProperties curates coords + derives hasLocation", async () => {
       longitude: null,
       marketValue: null,
       hasLocation: false,
+      units: [],
     },
+  ]);
+});
+
+test("listUserProperties flattens units and maps realEstateId → listingId", async () => {
+  const api = new AdminApi(
+    fakeClient({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        data: [
+          {
+            id: "p1",
+            title: "Flat H",
+            businesses: [
+              {
+                units: [
+                  { id: "u1", title: "Room 1", realEstateId: "listing-1" },
+                  { id: "u2", title: "Room 2", realEstateId: null },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    }),
+  );
+
+  const result = await api.listUserProperties("user-1", "tok");
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.properties[0].units, [
+    { id: "u1", title: "Room 1", listingId: "listing-1" },
+    { id: "u2", title: "Room 2", listingId: null },
   ]);
 });
 

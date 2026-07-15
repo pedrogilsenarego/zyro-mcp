@@ -219,6 +219,25 @@ export function registerAdminTools(
             "uploads it — use for photos scraped from a listing page. NOT for " +
             "images pasted into the chat.",
         ),
+      reference: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Custom reference/id for the listing — e.g. the source site's room " +
+            "code (the id in an imported URL). Defaults to an auto-generated " +
+            "'IMO-…' reference if omitted.",
+        ),
+      unitId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Id of a property unit (room) to associate this listing to — from " +
+            "admin_list_user_properties' units[]. Links the advert to that room " +
+            "under its house, so the property's room shows the listing instead " +
+            "of 'No listing associated'.",
+        ),
     },
     {
       title: "Admin: create listing for a user",
@@ -236,12 +255,14 @@ export function registerAdminTools(
           location,
           description,
           images,
+          unitId,
           ...base
         }: {
           userId: string;
           location: string;
           description?: string;
           images?: string[];
+          unitId?: string;
         } & Omit<AdminCreateListingInput, "latitude" | "longitude" | "listingType">,
         { token },
       ) => {
@@ -251,12 +272,15 @@ export function registerAdminTools(
             `Could not find a location for "${location}". Try a more specific place name (town + country).`,
           );
         }
-        const input: AdminCreateListingInput = {
+        // `resourceId` is the form field the BE create reads to link the
+        // listing to a unit (see createListingForUser in the BE controller).
+        const input: AdminCreateListingInput & { resourceId?: string } = {
           ...base,
           description,
           listingType: "supply",
           latitude: geo.lat,
           longitude: geo.lon,
+          ...(unitId ? { resourceId: unitId } : {}),
         };
         const result = await api.createListingForUser(
           userId,
@@ -276,8 +300,9 @@ export function registerAdminTools(
                 ? `; couldn't fetch: ${result.imagesFailed.join(", ")}.`
                 : ".")
             : "";
+        const unitNote = unitId ? ` Associated to unit ${unitId}.` : "";
         return text(
-          `Listing created for user ${userId}.${imageNote}\n${result.body}`,
+          `Listing created for user ${userId}.${unitNote}${imageNote}\n${result.body}`,
         );
       },
     ),

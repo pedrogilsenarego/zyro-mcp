@@ -27,6 +27,7 @@ export type CreateListingBase = {
   propertyType: PropertyType;
   businessType: BusinessType;
   propertyUrl?: string;
+  reference?: string;
   availableFrom?: string;
   roomFeatures?: RoomFeatureKey[];
   houseFeatures?: HouseFeatureKey[];

@@ -51,6 +51,14 @@ export const propertyUrlField = z
       "propertyUrl.",
   );
 
+export const referenceField = z
+  .string()
+  .min(1)
+  .describe(
+    "Custom reference/id for the listing — e.g. the source site's room code. " +
+      "Defaults to an auto-generated 'IMO-…' reference if omitted.",
+  );
+
 export function registerListingTools(
   server: McpServer,
   api: ListingsApi,
@@ -95,6 +103,7 @@ export function registerListingTools(
         .optional()
         .describe("ISO date the listing becomes available, e.g. '2026-07-17'."),
       propertyUrl: propertyUrlField.optional(),
+      reference: referenceField.optional(),
       roomFeatures: roomFeaturesField,
       houseFeatures: houseFeaturesField,
       smokingAllowed: z.boolean().optional(),

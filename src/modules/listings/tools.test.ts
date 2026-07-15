@@ -139,6 +139,7 @@ test("create_listing exposes exactly the expected fields", () => {
     "location",
     "propertyType",
     "propertyUrl",
+    "reference",
     "rentPrice",
     "roomFeatures",
     "smokingAllowed",
