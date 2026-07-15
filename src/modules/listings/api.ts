@@ -27,6 +27,7 @@ export const LISTING_SOURCE_FIELDS = [
 export const LISTING_DETAIL_SOURCE_FIELDS = [
   "id",
   "reference",
+  "propertyUrl",
   "title",
   "description",
   "isPublished",
@@ -72,6 +73,7 @@ export type ListMyListingsResult =
 export type ListingDetail = {
   id: string;
   reference: string | null;
+  propertyUrl: string | null;
   title: string | null;
   description: string | null;
   status: string | null;
@@ -245,6 +247,7 @@ function toDetail(body: string): ListingDetail | null {
   return {
     id: String(r.id),
     reference: str(r.reference),
+    propertyUrl: str(r.propertyUrl),
     title: str(r.title),
     description: str(r.description),
     status: str(r.isPublished),

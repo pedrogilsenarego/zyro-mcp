@@ -265,6 +265,21 @@ export function registerListingTools(
         .describe("Security deposit in EUR. Pass null to clear."),
       bedrooms: bedroomsField.nullable().optional(),
       bathrooms: bathroomsField.nullable().optional(),
+      reference: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "The listing's reference/code from its original source (agency feed, portal, etc.).",
+        ),
+      propertyUrl: z
+        .string()
+        .url()
+        .nullable()
+        .optional()
+        .describe(
+          "URL of the original listing on its source site. Pass null to clear.",
+        ),
     },
     {
       title: "Update listing",

@@ -52,4 +52,6 @@ export type UpdateListingInput = {
   deposit?: number | null;
   bedrooms?: number | null;
   bathrooms?: number | null;
+  reference?: string;
+  propertyUrl?: string | null;
 };

@@ -154,6 +154,8 @@ test("update_listing exposes exactly the expected fields", () => {
     "deposit",
     "houseFeatures",
     "listingId",
+    "propertyUrl",
+    "reference",
     "rentPrice",
     "roomFeatures",
     "salePrice",

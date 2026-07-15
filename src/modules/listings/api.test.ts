@@ -97,6 +97,7 @@ test("getListing curates the BE detail and defaults missing arrays", async () =>
   const raw = {
     id: "room-1",
     reference: "IMO-ROOM",
+    propertyUrl: "https://example.com/imovel/IMO-ROOM",
     title: "A room",
     description: "Cozy",
     isPublished: "active",
@@ -126,6 +127,8 @@ test("getListing curates the BE detail and defaults missing arrays", async () =>
   if (!result.ok) return;
 
   const { listing } = result;
+  assert.equal(listing.reference, "IMO-ROOM");
+  assert.equal(listing.propertyUrl, "https://example.com/imovel/IMO-ROOM");
   assert.deepEqual(listing.roomFeatures, ["desk", "wifi"]);
   // Null array defaults to [] so the model can safely spread/filter it.
   assert.deepEqual(listing.houseFeatures, []);
