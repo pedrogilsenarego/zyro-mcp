@@ -116,6 +116,9 @@ test("getListing curates the BE detail and defaults missing arrays", async () =>
     bedrooms: 3,
     bathrooms: 1,
     matchAlertsEnabled: true,
+    latitude: "38.735127",
+    longitude: "-9.144196",
+    locationNormalizedName: "Saldanha, Lisboa",
     internalScore: "should not surface",
   };
   const api = new ListingsApi(
@@ -135,6 +138,10 @@ test("getListing curates the BE detail and defaults missing arrays", async () =>
   assert.equal(listing.rentPrice, "400.00");
   assert.equal(listing.smokingAllowed, false);
   assert.equal(listing.maxPersons, 2);
+  // The listing's own coordinates surface (independent of any property).
+  assert.equal(listing.latitude, "38.735127");
+  assert.equal(listing.longitude, "-9.144196");
+  assert.equal(listing.locationNormalizedName, "Saldanha, Lisboa");
   // Curated: unknown fields must not leak.
   assert.ok(!("internalScore" in listing));
 });

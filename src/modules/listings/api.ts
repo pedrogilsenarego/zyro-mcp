@@ -46,6 +46,9 @@ export const LISTING_DETAIL_SOURCE_FIELDS = [
   "bedrooms",
   "bathrooms",
   "matchAlertsEnabled",
+  "latitude",
+  "longitude",
+  "locationNormalizedName",
 ] as const;
 
 export type CreateListingArgs = CreateListingBase & {
@@ -92,6 +95,9 @@ export type ListingDetail = {
   bedrooms: number | null;
   bathrooms: number | null;
   matchAlertsEnabled: boolean | null;
+  latitude: string | null;
+  longitude: string | null;
+  locationNormalizedName: string | null;
 };
 
 export type GetListingResult =
@@ -109,7 +115,10 @@ export class ListingsApi {
     for (const [key, value] of Object.entries(input)) {
       if (value === undefined || value === null) continue;
       // Arrays are JSON-stringified; the BE JSON.parses them.
-      form.append(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
+      form.append(
+        key,
+        Array.isArray(value) ? JSON.stringify(value) : String(value),
+      );
     }
     return this.client.request("/listing/add", {
       method: "POST",
@@ -125,15 +134,12 @@ export class ListingsApi {
   ): Promise<BackendResult> {
     // BE reads this as JSON (c.req.json()), so send a JSON body — not the
     // multipart form createListing uses.
-    return this.client.request(
-      `/listing/${encodeURIComponent(listingId)}`,
-      {
-        method: "PATCH",
-        accessToken,
-        body: JSON.stringify(input),
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return this.client.request(`/listing/${encodeURIComponent(listingId)}`, {
+      method: "PATCH",
+      accessToken,
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   setPublishStatus(
@@ -184,10 +190,10 @@ export class ListingsApi {
     listingId: string,
     accessToken: string,
   ): Promise<BackendResult> {
-    return this.client.request(
-      `/listing/${encodeURIComponent(listingId)}`,
-      { method: "DELETE", accessToken },
-    );
+    return this.client.request(`/listing/${encodeURIComponent(listingId)}`, {
+      method: "DELETE",
+      accessToken,
+    });
   }
 
   async getListing(
@@ -241,8 +247,7 @@ function toDetail(body: string): ListingDetail | null {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
-  const strArray = (v: unknown) =>
-    Array.isArray(v) ? v.map(String) : [];
+  const strArray = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
 
   return {
     id: String(r.id),
@@ -266,6 +271,9 @@ function toDetail(body: string): ListingDetail | null {
     bedrooms: num(r.bedrooms),
     bathrooms: num(r.bathrooms),
     matchAlertsEnabled: bool(r.matchAlertsEnabled),
+    latitude: str(r.latitude),
+    longitude: str(r.longitude),
+    locationNormalizedName: str(r.locationNormalizedName),
   };
 }
 

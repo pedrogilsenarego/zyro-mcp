@@ -44,11 +44,18 @@ test("registers exactly the admin tools", () => {
     [...registered().keys()].sort(),
     [
       "admin_create_listing",
+      "admin_get_listing",
       "admin_list_user_listings",
       "admin_list_user_properties",
       "admin_update_property",
     ],
   );
+});
+
+test("admin_get_listing is read-only and takes just listingId", () => {
+  const { shape, annotations } = registered().get("admin_get_listing")!;
+  assert.deepEqual(sortedKeys(shape), ["listingId"]);
+  assert.equal(annotations?.readOnlyHint, true);
 });
 
 test("admin_list_user_properties is read-only and takes just userId", () => {

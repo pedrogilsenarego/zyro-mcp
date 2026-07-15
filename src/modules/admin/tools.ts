@@ -70,6 +70,36 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_get_listing",
+    "ADMIN ONLY. Fetch the full detail of ANY listing by id — including ones " +
+      "owned by another user — the same curated shape get_listing returns " +
+      "(description, amenities, availableFrom / availableTo, deposit, gender, " +
+      "maxPersons, match-alert state, and the listing's own location: latitude / " +
+      "longitude / locationNormalizedName). Use this when an admin needs the full " +
+      "detail of a listing they don't own — e.g. from an admin_list_user_listings " +
+      "row. Get the id from a listing lookup; never guess it.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+    },
+    {
+      title: "Admin: get any listing's detail",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ listingId }: { listingId: string }, { token }) => {
+        const result = await listingsApi.getListing(listingId, token);
+        return result.ok
+          ? text(JSON.stringify(result.listing, null, 2))
+          : errorText(
+              `Could not fetch listing (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
     "admin_list_user_properties",
     "ADMIN ONLY. List a given user's properties (houses/portfolios) with their " +
       "id, title, coordinates and market value. Use this to find a property's " +

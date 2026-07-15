@@ -208,7 +208,9 @@ export function registerListingTools(
     "Fetch the full detail of one of the authenticated user's listings by id, " +
       "including fields list_listings omits: description, amenities " +
       "(roomFeatures / houseFeatures), availableFrom / availableTo, deposit, " +
-      "gender, maxPersons, and match-alert state. The id comes from a prior " +
+      "gender, maxPersons, match-alert state, and the listing's own location " +
+      "(latitude / longitude / locationNormalizedName — a listing has its own " +
+      "coordinates, independent of any associated property). The id comes from a prior " +
       "list_listings / create_listing result — never guess it.\n\n" +
       "Call this BEFORE any relative edit. roomFeatures / houseFeatures are " +
       "whole-array fields — update_listing replaces the entire array, so to " +
