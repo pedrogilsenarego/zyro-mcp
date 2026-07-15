@@ -301,6 +301,48 @@ test("updatePropertyForUser PUTs the fields as JSON to /admin/portfolios/:id", a
   });
 });
 
+test("createPropertyForUser POSTs the owner id + property form to /admin/portfolios", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { id: "prop-new" } }),
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.createPropertyForUser(
+    "owner-7",
+    { title: "Casa Passos Manuel", rooms: ["Room 1", "Room 2"] },
+    "admin-tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/admin/portfolios");
+  assert.equal(calls[0].opts.method, "POST");
+  assert.equal(calls[0].opts.accessToken, "admin-tok");
+  assert.ok(calls[0].opts.body instanceof FormData);
+
+  const form = calls[0].opts.body as FormData;
+  assert.equal(form.get("userId"), "owner-7");
+  assert.equal(form.get("title"), "Casa Passos Manuel");
+  const businesses = JSON.parse(String(form.get("businesses")));
+  assert.equal(businesses[0].units.length, 2);
+});
+
+test("createPropertyForUser relays a 403 (non-admin) instead of throwing", async () => {
+  const api = new AdminApi(
+    fakeClient({ ok: false, status: 403, body: "Forbidden" }),
+  );
+  const result = await api.createPropertyForUser(
+    "owner-7",
+    { title: "X" },
+    "tok",
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.equal(result.body, "Forbidden");
+});
+
 test("updatePropertyForUser relays a 403 (non-admin) instead of throwing", async () => {
   const api = new AdminApi(
     fakeClient({ ok: false, status: 403, body: "Forbidden" }),

@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { BackendClient } from "../../backend/client.js";
 import {
   PropertiesApi,
+  buildPropertyForm,
+  PROPERTY_ROOMS_BUSINESS_TYPE,
+  PROPERTY_ROOM_UNIT_TYPE,
   PROPERTY_SOURCE_FIELDS,
   PROPERTY_UNIT_SOURCE_FIELDS,
 } from "./api.js";
@@ -182,6 +185,81 @@ test("updateProperty relays a backend permission error instead of throwing", asy
   assert.equal(result.ok, false);
   assert.equal(result.status, 403);
   assert.equal(result.body, "Forbidden");
+});
+
+test("buildPropertyForm encodes rooms as a single Rooms business with room units", async () => {
+  const form = buildPropertyForm({
+    title: "Casa Passos Manuel",
+    latitude: 38.72,
+    longitude: -9.13,
+    marketValue: 400000,
+    generatesIncome: true,
+    houseFeatures: ["elevator", "wifi"],
+    rooms: ["Room 1", "Room 2"],
+  });
+
+  assert.equal(form.get("title"), "Casa Passos Manuel");
+  assert.equal(form.get("latitude"), "38.72");
+  assert.equal(form.get("longitude"), "-9.13");
+  assert.equal(form.get("marketValue"), "400000");
+  assert.equal(form.get("generatesIncome"), "true");
+  assert.deepEqual(JSON.parse(String(form.get("houseFeatures"))), [
+    "elevator",
+    "wifi",
+  ]);
+
+  const businesses = JSON.parse(String(form.get("businesses")));
+  assert.deepEqual(businesses, [
+    {
+      businessType: PROPERTY_ROOMS_BUSINESS_TYPE,
+      units: [
+        { title: "Room 1", unitType: PROPERTY_ROOM_UNIT_TYPE },
+        { title: "Room 2", unitType: PROPERTY_ROOM_UNIT_TYPE },
+      ],
+    },
+  ]);
+});
+
+test("buildPropertyForm still sends one empty Rooms business when no rooms given", async () => {
+  const form = buildPropertyForm({ title: "Empty House" });
+  // Optional scalars are omitted entirely rather than sent as "undefined".
+  assert.equal(form.get("latitude"), null);
+  assert.equal(form.get("marketValue"), null);
+  const businesses = JSON.parse(String(form.get("businesses")));
+  assert.deepEqual(businesses, [
+    { businessType: PROPERTY_ROOMS_BUSINESS_TYPE, units: [] },
+  ]);
+});
+
+test("createProperty POSTs the multipart form to /property/add with the caller's token", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { id: "prop-9" } }),
+  });
+  const api = new PropertiesApi(client);
+
+  const result = await api.createProperty(
+    { title: "Casa X", rooms: ["Room 1"] },
+    "tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/property/add");
+  assert.equal(calls[0].opts.method, "POST");
+  assert.equal(calls[0].opts.accessToken, "tok");
+  assert.ok(calls[0].opts.body instanceof FormData);
+  assert.equal((calls[0].opts.body as FormData).get("title"), "Casa X");
+});
+
+test("createProperty relays a backend error instead of throwing", async () => {
+  const api = new PropertiesApi(
+    fakeClient({ ok: false, status: 400, body: "At least one business is required" }),
+  );
+  const result = await api.createProperty({ title: "X" }, "tok");
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 400);
 });
 
 /**

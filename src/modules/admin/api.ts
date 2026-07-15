@@ -3,6 +3,7 @@ import type {
   CreateListingInput,
   UpdatePropertyInput,
 } from "../../generated/contracts.js";
+import { buildPropertyForm, type CreatePropertyInput } from "../properties/api.js";
 
 // Raw BE fields the adapter reads off each admin listing row; the contract test
 // asserts they still exist on GET /admin/listings.
@@ -195,6 +196,25 @@ export class AdminApi {
       status: res.status,
       properties: toPropertySummaries(res.body),
     };
+  }
+
+  // Creates a property OWNED BY `ownerId` via the admin backoffice endpoint
+  // (POST /admin/portfolios). Like admin_create_listing, the owner is passed as
+  // the form's `userId` field — the one place a user id is data not token — and
+  // it's admin-gated (requireAdmin). Reuses buildPropertyForm so the encoding
+  // matches the owner's own create path exactly.
+  createPropertyForUser(
+    ownerId: string,
+    input: CreatePropertyInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    const form = buildPropertyForm(input);
+    form.append("userId", ownerId);
+    return this.client.request("/admin/portfolios", {
+      method: "POST",
+      accessToken,
+      body: form,
+    });
   }
 
   // Updates any property by id via the admin backoffice endpoint

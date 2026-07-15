@@ -17,6 +17,66 @@ export const PROPERTY_SOURCE_FIELDS = [
 // Raw fields the adapter reads off each unit (nested under businesses[].units[]).
 export const PROPERTY_UNIT_SOURCE_FIELDS = ["id", "title", "unitType"] as const;
 
+// Numeric codes the BE stores for a room-rental portfolio. Mirrors the FE
+// PortfolioBusinessType.Rooms / UnitBusinessType.Room enums — a property here is
+// always a room-rental house (businessType 1) whose units are rooms (unitType 1),
+// matching the only create path the app exposes. Sent as strings; the BE
+// Number()s them.
+export const PROPERTY_ROOMS_BUSINESS_TYPE = "1";
+export const PROPERTY_ROOM_UNIT_TYPE = "1";
+
+// Fields the create tools collect. `rooms` are the unit (room) titles that become
+// the property's rentable units; `latitude`/`longitude` come from geocoding a
+// place name in the tool layer (the BE reverse-resolves the freguesia from them).
+export type CreatePropertyInput = {
+  title: string;
+  latitude?: number;
+  longitude?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  marketValue?: number;
+  generatesIncome?: boolean;
+  houseFeatures?: string[];
+  rooms?: string[];
+};
+
+// Builds the multipart body POST /property/add (and the admin variant) expect:
+// scalars stringified, `houseFeatures` JSON-stringified, and a single Rooms
+// business carrying the rooms as units. The BE requires at least one business,
+// so we always send one even when there are no rooms yet. Shared by the user and
+// admin create paths so the encoding can't drift between them.
+export function buildPropertyForm(input: CreatePropertyInput): FormData {
+  const form = new FormData();
+  form.append("title", input.title);
+
+  const scalars: Record<string, unknown> = {
+    latitude: input.latitude,
+    longitude: input.longitude,
+    bedrooms: input.bedrooms,
+    bathrooms: input.bathrooms,
+    marketValue: input.marketValue,
+    generatesIncome: input.generatesIncome,
+  };
+  for (const [key, value] of Object.entries(scalars)) {
+    if (value !== undefined && value !== null) form.append(key, String(value));
+  }
+
+  if (input.houseFeatures && input.houseFeatures.length > 0) {
+    form.append("houseFeatures", JSON.stringify(input.houseFeatures));
+  }
+
+  const units = (input.rooms ?? []).map((title) => ({
+    title,
+    unitType: PROPERTY_ROOM_UNIT_TYPE,
+  }));
+  form.append(
+    "businesses",
+    JSON.stringify([{ businessType: PROPERTY_ROOMS_BUSINESS_TYPE, units }]),
+  );
+
+  return form;
+}
+
 export interface PropertyUnitSummary {
   id: string;
   title: string | null;
@@ -51,6 +111,20 @@ export class PropertiesApi {
     });
     if (!res.ok) return { ok: false, status: res.status, body: res.body };
     return { ok: true, status: res.status, properties: toSummaries(res.body) };
+  }
+
+  // Creates a property (house/portfolio) owned by the caller — identity comes
+  // from the token, POST /property/add reads it itself. Multipart, mirroring the
+  // app's own create flow (see buildPropertyForm). Returns the raw BE result.
+  createProperty(
+    input: CreatePropertyInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request("/property/add", {
+      method: "POST",
+      accessToken,
+      body: buildPropertyForm(input),
+    });
   }
 
   // Updates the caller's own property (house/portfolio). Identity comes from the

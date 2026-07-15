@@ -4,7 +4,12 @@ import type { ToolDeps } from "../deps.js";
 import { authedHandler, text, errorText } from "../toolkit.js";
 import { AdminApi, type AdminCreateListingInput } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
-import { buildUpdateInput } from "../properties/tools.js";
+import {
+  buildUpdateInput,
+  buildCreateInput,
+  CREATE_PROPERTY_FIELDS,
+  type CreatePropertyArgs,
+} from "../properties/tools.js";
 import {
   HOUSE_FEATURE_KEYS,
   PROPERTY_TYPES,
@@ -272,6 +277,64 @@ export function registerAdminTools(
         return text(
           `Listing created for user ${userId}.${imageNote}\n${result.body}`,
         );
+      },
+    ),
+  );
+
+  server.tool(
+    "admin_create_property",
+    "ADMIN ONLY. Create a property (a house/portfolio) ON BEHALF OF another " +
+      "user — the property is owned by that user, not by you. Use this when an " +
+      "admin sets up someone's house, e.g. rebuilding a property found on " +
+      "another website before adding its room listings. Resolve the target " +
+      "person to an id with find_users first and pass it as `userId`.\n\n" +
+      "A property here is always a room-rental house; pass `rooms` to create its " +
+      "rentable units (rooms) in the same call. Pass `location` (a place name) " +
+      "so the map/Location card appears — it is geocoded. This creates the " +
+      "portfolio structure only; advertise a room separately with " +
+      "admin_create_listing.",
+    {
+      userId: z
+        .string()
+        .min(1)
+        .describe(
+          "The target owner's id (from find_users). The property is created " +
+            "owned by this user, not by you.",
+        ),
+      ...CREATE_PROPERTY_FIELDS,
+    },
+    {
+      title: "Admin: create property for a user",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      // Geocoding hits an external service when `location` is passed.
+      openWorldHint: true,
+    },
+    authedHandler(
+      deps,
+      async (
+        { userId, ...args }: { userId: string } & CreatePropertyArgs,
+        { token },
+      ) => {
+        const input = await buildCreateInput(args, listingsApi, token);
+        if ("error" in input) return errorText(input.error);
+        const result = await api.createPropertyForUser(
+          userId,
+          input.value,
+          token,
+        );
+        return result.ok
+          ? text(
+              `Property "${args.title}" created for user ${userId}` +
+                (args.rooms?.length
+                  ? ` with ${args.rooms.length} room(s)`
+                  : "") +
+                `.\n${result.body}`,
+            )
+          : errorText(
+              `Admin property creation failed (status ${result.status}): ${result.body}`,
+            );
       },
     ),
   );
