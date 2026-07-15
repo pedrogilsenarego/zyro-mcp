@@ -54,6 +54,11 @@ export type UpdateListingInput = {
   bathrooms?: number | null;
   reference?: string;
   propertyUrl?: string | null;
+  // A listing's own map location. Passing both reverse-resolves the freguesia
+  // BE-side (locationId + normalized name), so callers send just the two coords
+  // — e.g. to sync a listing onto its associated property's location.
+  latitude?: number;
+  longitude?: number;
 };
 
 // Fields the property (house/portfolio) update accepts. Passing latitude +

@@ -282,6 +282,19 @@ export function registerListingTools(
         .describe(
           "URL of the original listing on its source site. Pass null to clear.",
         ),
+      latitude: z
+        .number()
+        .optional()
+        .describe(
+          "New map latitude. Pass together with longitude — the backend " +
+            "reverse-resolves the parish/normalized name from the coords. Use " +
+            "to correct a listing's location or sync it onto its property's " +
+            "coordinates (read those from admin_list_user_properties).",
+        ),
+      longitude: z
+        .number()
+        .optional()
+        .describe("New map longitude. Must be sent together with latitude."),
     },
     {
       title: "Update listing",
@@ -298,6 +311,11 @@ export function registerListingTools(
         { listingId, ...input }: { listingId: string } & UpdateListingInput,
         { token },
       ) => {
+        if ((input.latitude == null) !== (input.longitude == null)) {
+          return errorText(
+            "Pass latitude and longitude together — the backend needs both to set a location.",
+          );
+        }
         const result = await api.updateListing(listingId, input, token);
         return result.ok
           ? text(`Listing ${listingId} updated.\n${result.body}`)
