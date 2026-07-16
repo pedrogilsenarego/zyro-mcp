@@ -452,6 +452,37 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_delete_listing",
+    "ADMIN ONLY. Permanently remove ANY listing by id — including one owned by " +
+      "another user (the backend resolves the owner from the id and runs the " +
+      "owner's own soft-delete). Use this to clean up a duplicate or orphaned " +
+      "listing an admin created by mistake. This is destructive and cannot be " +
+      "undone from here — get the id from a listing lookup and be sure it's the " +
+      "right one; never guess it. Relay any backend error verbatim.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+    },
+    {
+      title: "Admin: delete a user's listing",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ listingId }: { listingId: string }, { token }) => {
+        const result = await api.deleteListingForUser(listingId, token);
+        return result.ok
+          ? text(`Listing ${listingId} deleted.\n${result.body}`)
+          : errorText(
+              `Admin listing deletion failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
     "admin_create_property",
     "ADMIN ONLY. Create a property (a house/portfolio) ON BEHALF OF another " +
       "user — the property is owned by that user, not by you. Use this when an " +

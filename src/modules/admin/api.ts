@@ -272,6 +272,24 @@ export class AdminApi {
     );
   }
 
+  // Deletes any listing by id via the admin backoffice endpoint
+  // (DELETE /admin/listings/:id). The backend resolves the owner from the
+  // listing id and runs the owner's own remove path (soft-delete), so there's
+  // no separate delete behaviour to drift. Admin-gated — a non-admin token
+  // gets a 403 we relay verbatim.
+  deleteListingForUser(
+    listingId: string,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/listings/${encodeURIComponent(listingId)}`,
+      {
+        method: "DELETE",
+        accessToken,
+      },
+    );
+  }
+
   // Updates any property by id via the admin backoffice endpoint
   // (PUT /admin/portfolios/:id). The backend resolves the owner from the
   // property id and runs the owner's own update path, so there's no separate
