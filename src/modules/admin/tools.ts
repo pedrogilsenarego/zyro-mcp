@@ -330,11 +330,18 @@ export function registerAdminTools(
       "`availableFrom`, correct the price/title, or replace amenities. Only the " +
       "fields you pass change. roomFeatures/houseFeatures REPLACE the whole " +
       "array — read the current values (admin_get_listing) first so a partial " +
-      "change doesn't drop existing amenities. Note: `reference` is set at " +
-      "create time and is not editable here.",
+      "change doesn't drop existing amenities.",
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
       title: z.string().min(1).optional(),
+      reference: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "The listing's reference. Use to backfill an imported listing's " +
+            "source code (e.g. the site's room id) over an auto 'IMO-…' ref.",
+        ),
       rentPrice: z.number().positive().optional().describe("Monthly rent in EUR."),
       availableFrom: z
         .string()
