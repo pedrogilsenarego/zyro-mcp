@@ -43,6 +43,7 @@ test("registers exactly the admin tools", () => {
   assert.deepEqual(
     [...registered().keys()].sort(),
     [
+      "admin_associate_listing",
       "admin_create_listing",
       "admin_create_property",
       "admin_delete_listing",

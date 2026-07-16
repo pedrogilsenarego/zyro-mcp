@@ -483,6 +483,59 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_associate_listing",
+    "ADMIN ONLY. Link a listing to a property unit (room) by id — or unlink it " +
+      "— including for a listing owned by another user (the backend resolves " +
+      "the owner). This is the association that `admin_create_listing`'s " +
+      "`unitId` sets, but editable AFTER create, so you can attach an existing " +
+      "standalone listing to a unit without deleting/recreating it. Pass " +
+      "`unitId` (from admin_list_user_properties' units[]) to link, or null to " +
+      "unlink. After linking, the property's room shows this listing instead of " +
+      "'No listing associated'. Relay any backend error verbatim.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+      unitId: z
+        .string()
+        .min(1)
+        .nullable()
+        .describe(
+          "The property unit (room) id to link this listing to — from " +
+            "admin_list_user_properties' units[]. Pass null to unlink.",
+        ),
+    },
+    {
+      title: "Admin: link a listing to a unit",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async (
+        { listingId, unitId }: { listingId: string; unitId: string | null },
+        { token },
+      ) => {
+        const result = await api.setListingResourceForUser(
+          listingId,
+          unitId,
+          token,
+        );
+        if (!result.ok) {
+          return errorText(
+            `Admin listing association failed (status ${result.status}): ${result.body}`,
+          );
+        }
+        return text(
+          unitId
+            ? `Listing ${listingId} linked to unit ${unitId}.\n${result.body}`
+            : `Listing ${listingId} unlinked from its unit.\n${result.body}`,
+        );
+      },
+    ),
+  );
+
+  server.tool(
     "admin_update_listing_images",
     "ADMIN ONLY. Add and/or remove images on ANY listing by id — including one " +
       "owned by another user (the backend resolves the owner). Pass `images` as " +

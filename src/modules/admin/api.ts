@@ -312,6 +312,28 @@ export class AdminApi {
     };
   }
 
+  // Re-links (or unlinks) any listing to a property unit via the admin
+  // backoffice endpoint (PATCH /admin/listings/:id/resource). Sets the
+  // listing's resourceId to the unit id (or null to unassociate) — the same
+  // link create sets via `unitId`, but editable after the fact so no recreate
+  // is needed. The BE resolves the owner from the listing id. Admin-gated — a
+  // non-admin token gets a 403 we relay verbatim.
+  setListingResourceForUser(
+    listingId: string,
+    resourceId: string | null,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/listings/${encodeURIComponent(listingId)}/resource`,
+      {
+        method: "PATCH",
+        accessToken,
+        body: JSON.stringify({ resourceId }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   // Deletes any listing by id via the admin backoffice endpoint
   // (DELETE /admin/listings/:id). The backend resolves the owner from the
   // listing id and runs the owner's own remove path (soft-delete), so there's
