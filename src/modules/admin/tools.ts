@@ -334,6 +334,10 @@ export function registerAdminTools(
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
       title: z.string().min(1).optional(),
+      description: z
+        .string()
+        .optional()
+        .describe("Free-text listing description (replaces the current one)."),
       reference: z
         .string()
         .min(1)
