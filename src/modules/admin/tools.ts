@@ -483,6 +483,60 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_update_listing_images",
+    "ADMIN ONLY. Add images to ANY listing by id — including one owned by " +
+      "another user (the backend resolves the owner). Pass `images` as an array " +
+      "of PUBLIC image URLs (e.g. photos scraped from the source listing page); " +
+      "the server downloads each and appends it, KEEPING the listing's existing " +
+      "images. This does NOT work for images pasted into the chat — only " +
+      "fetchable URLs. Use to backfill photos onto an imported listing that was " +
+      "created without them. Relay any backend error verbatim.",
+    {
+      listingId: z.string().min(1).describe("The listing's id (UUID)."),
+      images: z
+        .array(z.string().url())
+        .min(1)
+        .max(20)
+        .describe(
+          "Public image URLs to add (max 20). The server downloads each and " +
+            "appends it to the listing's existing images.",
+        ),
+    },
+    {
+      title: "Admin: add images to a listing",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      // Fetches arbitrary external image URLs, so it reaches outside the app.
+      openWorldHint: true,
+    },
+    authedHandler(
+      deps,
+      async (
+        { listingId, images }: { listingId: string; images: string[] },
+        { token },
+      ) => {
+        const result = await api.addListingImagesForUser(
+          listingId,
+          images,
+          token,
+        );
+        if (!result.ok) {
+          return errorText(
+            `Admin image update failed (status ${result.status}): ${result.body}`,
+          );
+        }
+        const failNote = result.imagesFailed.length
+          ? ` Couldn't fetch: ${result.imagesFailed.join(", ")}.`
+          : "";
+        return text(
+          `Added ${result.imagesAttached} image(s) to listing ${listingId}.${failNote}\n${result.body}`,
+        );
+      },
+    ),
+  );
+
+  server.tool(
     "admin_create_property",
     "ADMIN ONLY. Create a property (a house/portfolio) ON BEHALF OF another " +
       "user — the property is owned by that user, not by you. Use this when an " +
