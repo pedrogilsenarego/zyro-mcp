@@ -281,6 +281,7 @@ export class AdminApi {
   async addListingImagesForUser(
     listingId: string,
     imageUrls: string[],
+    imagesToDelete: string[],
     accessToken: string,
     fetchImpl: FetchLike = fetch,
   ): Promise<AdminCreateListingResult> {
@@ -288,6 +289,9 @@ export class AdminApi {
     const form = new FormData();
     for (const { blob, filename } of files) {
       form.append("imagesToAdd", blob, filename);
+    }
+    if (imagesToDelete.length > 0) {
+      form.append("imagesToDelete", JSON.stringify(imagesToDelete));
     }
 
     const res = await this.client.request(
@@ -334,6 +338,7 @@ export class AdminApi {
   async addPropertyImagesForUser(
     propertyId: string,
     imageUrls: string[],
+    imagesToDelete: string[],
     accessToken: string,
     fetchImpl: FetchLike = fetch,
   ): Promise<AdminCreateListingResult> {
@@ -341,6 +346,9 @@ export class AdminApi {
     const form = new FormData();
     for (const { blob, filename } of files) {
       form.append("imagesToAdd", blob, filename);
+    }
+    if (imagesToDelete.length > 0) {
+      form.append("imagesToDelete", JSON.stringify(imagesToDelete));
     }
 
     const res = await this.client.request(

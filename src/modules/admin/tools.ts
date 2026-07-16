@@ -484,28 +484,35 @@ export function registerAdminTools(
 
   server.tool(
     "admin_update_listing_images",
-    "ADMIN ONLY. Add images to ANY listing by id — including one owned by " +
-      "another user (the backend resolves the owner). Pass `images` as an array " +
-      "of PUBLIC image URLs (e.g. photos scraped from the source listing page); " +
-      "the server downloads each and appends it, KEEPING the listing's existing " +
-      "images. This does NOT work for images pasted into the chat — only " +
-      "fetchable URLs. Use to backfill photos onto an imported listing that was " +
-      "created without them. Relay any backend error verbatim.",
+    "ADMIN ONLY. Add and/or remove images on ANY listing by id — including one " +
+      "owned by another user (the backend resolves the owner). Pass `images` as " +
+      "PUBLIC image URLs to add (server downloads each, KEEPING existing images) " +
+      "and/or `imagesToDelete` as EXACT current image URLs to remove (copy them " +
+      "verbatim from the listing's `pictures` array — admin_get_listing). Adding " +
+      "does NOT work for images pasted into the chat — only fetchable URLs. Pass " +
+      "at least one of the two. Relay any backend error verbatim.",
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
       images: z
         .array(z.string().url())
-        .min(1)
         .max(20)
+        .optional()
         .describe(
           "Public image URLs to add (max 20). The server downloads each and " +
             "appends it to the listing's existing images.",
         ),
+      imagesToDelete: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Exact current image URLs to remove — must match entries in the " +
+            "listing's `pictures` array verbatim.",
+        ),
     },
     {
-      title: "Admin: add images to a listing",
+      title: "Admin: add/remove listing images",
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: false,
       // Fetches arbitrary external image URLs, so it reaches outside the app.
       openWorldHint: true,
@@ -513,12 +520,22 @@ export function registerAdminTools(
     authedHandler(
       deps,
       async (
-        { listingId, images }: { listingId: string; images: string[] },
-        { token },
-      ) => {
-        const result = await api.addListingImagesForUser(
+        {
           listingId,
           images,
+          imagesToDelete,
+        }: { listingId: string; images?: string[]; imagesToDelete?: string[] },
+        { token },
+      ) => {
+        if (!images?.length && !imagesToDelete?.length) {
+          return errorText(
+            "Nothing to do — pass `images` to add and/or `imagesToDelete` to remove.",
+          );
+        }
+        const result = await api.addListingImagesForUser(
+          listingId,
+          images ?? [],
+          imagesToDelete ?? [],
           token,
         );
         if (!result.ok) {
@@ -529,8 +546,11 @@ export function registerAdminTools(
         const failNote = result.imagesFailed.length
           ? ` Couldn't fetch: ${result.imagesFailed.join(", ")}.`
           : "";
+        const delNote = imagesToDelete?.length
+          ? ` Removed ${imagesToDelete.length}.`
+          : "";
         return text(
-          `Added ${result.imagesAttached} image(s) to listing ${listingId}.${failNote}\n${result.body}`,
+          `Added ${result.imagesAttached} image(s) to listing ${listingId}.${delNote}${failNote}\n${result.body}`,
         );
       },
     ),
@@ -687,30 +707,37 @@ export function registerAdminTools(
 
   server.tool(
     "admin_update_property_images",
-    "ADMIN ONLY. Add images to a property (house/portfolio) by id — including " +
-      "one owned by another user (the backend resolves the owner). Pass " +
-      "`images` as an array of PUBLIC image URLs (e.g. the house/common-area " +
-      "photos scraped from the source listing page — kitchen, bathroom, living " +
-      "room, terrace); the server downloads each and appends it, KEEPING the " +
-      "property's existing images. This does NOT work for images pasted into " +
-      "the chat — only fetchable URLs. Use for the shared HOUSE gallery; " +
-      "room-specific photos go on the room listing via " +
-      "admin_update_listing_images. Relay any backend error verbatim.",
+    "ADMIN ONLY. Add and/or remove images on a property (house/portfolio) by " +
+      "id — including one owned by another user (the backend resolves the " +
+      "owner). Pass `images` as PUBLIC image URLs to add — use the shared " +
+      "HOUSE/common-area photos ONLY (kitchen, bathroom, living room, terrace, " +
+      "lobby); NEVER bedroom/room shots (those go on the room listing via " +
+      "admin_update_listing_images). And/or pass `imagesToDelete` as EXACT " +
+      "current image URLs to remove (copy verbatim from the property's " +
+      "`imageUrls`). Adding needs fetchable URLs, not chat-pasted images. Pass " +
+      "at least one of the two. Relay any backend error verbatim.",
     {
       propertyId: z.string().min(1).describe("The property's id (UUID)."),
       images: z
         .array(z.string().url())
-        .min(1)
         .max(20)
+        .optional()
         .describe(
           "Public image URLs to add (max 20). The server downloads each and " +
             "appends it to the property's existing images.",
         ),
+      imagesToDelete: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Exact current image URLs to remove — must match entries in the " +
+            "property's `imageUrls` verbatim.",
+        ),
     },
     {
-      title: "Admin: add images to a property",
+      title: "Admin: add/remove property images",
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: false,
       // Fetches arbitrary external image URLs, so it reaches outside the app.
       openWorldHint: true,
@@ -718,12 +745,22 @@ export function registerAdminTools(
     authedHandler(
       deps,
       async (
-        { propertyId, images }: { propertyId: string; images: string[] },
-        { token },
-      ) => {
-        const result = await api.addPropertyImagesForUser(
+        {
           propertyId,
           images,
+          imagesToDelete,
+        }: { propertyId: string; images?: string[]; imagesToDelete?: string[] },
+        { token },
+      ) => {
+        if (!images?.length && !imagesToDelete?.length) {
+          return errorText(
+            "Nothing to do — pass `images` to add and/or `imagesToDelete` to remove.",
+          );
+        }
+        const result = await api.addPropertyImagesForUser(
+          propertyId,
+          images ?? [],
+          imagesToDelete ?? [],
           token,
         );
         if (!result.ok) {
@@ -734,8 +771,11 @@ export function registerAdminTools(
         const failNote = result.imagesFailed.length
           ? ` Couldn't fetch: ${result.imagesFailed.join(", ")}.`
           : "";
+        const delNote = imagesToDelete?.length
+          ? ` Removed ${imagesToDelete.length}.`
+          : "";
         return text(
-          `Added ${result.imagesAttached} image(s) to property ${propertyId}.${failNote}\n${result.body}`,
+          `Added ${result.imagesAttached} image(s) to property ${propertyId}.${delNote}${failNote}\n${result.body}`,
         );
       },
     ),
