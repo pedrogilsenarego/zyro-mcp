@@ -53,6 +53,7 @@ test("registers exactly the admin tools", () => {
       "admin_update_listing",
       "admin_update_listing_images",
       "admin_update_property",
+      "admin_update_property_images",
     ],
   );
 });

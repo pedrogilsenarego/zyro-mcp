@@ -684,4 +684,60 @@ export function registerAdminTools(
       },
     ),
   );
+
+  server.tool(
+    "admin_update_property_images",
+    "ADMIN ONLY. Add images to a property (house/portfolio) by id — including " +
+      "one owned by another user (the backend resolves the owner). Pass " +
+      "`images` as an array of PUBLIC image URLs (e.g. the house/common-area " +
+      "photos scraped from the source listing page — kitchen, bathroom, living " +
+      "room, terrace); the server downloads each and appends it, KEEPING the " +
+      "property's existing images. This does NOT work for images pasted into " +
+      "the chat — only fetchable URLs. Use for the shared HOUSE gallery; " +
+      "room-specific photos go on the room listing via " +
+      "admin_update_listing_images. Relay any backend error verbatim.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+      images: z
+        .array(z.string().url())
+        .min(1)
+        .max(20)
+        .describe(
+          "Public image URLs to add (max 20). The server downloads each and " +
+            "appends it to the property's existing images.",
+        ),
+    },
+    {
+      title: "Admin: add images to a property",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      // Fetches arbitrary external image URLs, so it reaches outside the app.
+      openWorldHint: true,
+    },
+    authedHandler(
+      deps,
+      async (
+        { propertyId, images }: { propertyId: string; images: string[] },
+        { token },
+      ) => {
+        const result = await api.addPropertyImagesForUser(
+          propertyId,
+          images,
+          token,
+        );
+        if (!result.ok) {
+          return errorText(
+            `Admin property image update failed (status ${result.status}): ${result.body}`,
+          );
+        }
+        const failNote = result.imagesFailed.length
+          ? ` Couldn't fetch: ${result.imagesFailed.join(", ")}.`
+          : "";
+        return text(
+          `Added ${result.imagesAttached} image(s) to property ${propertyId}.${failNote}\n${result.body}`,
+        );
+      },
+    ),
+  );
 }

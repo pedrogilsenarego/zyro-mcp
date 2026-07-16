@@ -326,6 +326,41 @@ export class AdminApi {
     );
   }
 
+  // Adds images to any property by id via the admin backoffice endpoint
+  // (PATCH /admin/portfolios/:id/images). Downloads each URL server-side and
+  // appends them as the form's `imagesToAdd` files — the backend keeps existing
+  // images and adds these. The BE resolves the owner from the property id.
+  // Admin-gated — a non-admin token gets a 403 we relay verbatim.
+  async addPropertyImagesForUser(
+    propertyId: string,
+    imageUrls: string[],
+    accessToken: string,
+    fetchImpl: FetchLike = fetch,
+  ): Promise<AdminCreateListingResult> {
+    const { files, failed } = await downloadImages(imageUrls, fetchImpl);
+    const form = new FormData();
+    for (const { blob, filename } of files) {
+      form.append("imagesToAdd", blob, filename);
+    }
+
+    const res = await this.client.request(
+      `/admin/portfolios/${encodeURIComponent(propertyId)}/images`,
+      {
+        method: "PATCH",
+        accessToken,
+        body: form,
+      },
+    );
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      body: res.body,
+      imagesAttached: files.length,
+      imagesFailed: failed,
+    };
+  }
+
   // Updates any property by id via the admin backoffice endpoint
   // (PUT /admin/portfolios/:id). The backend resolves the owner from the
   // property id and runs the owner's own update path, so there's no separate
