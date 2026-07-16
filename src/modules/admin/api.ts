@@ -401,6 +401,30 @@ export class AdminApi {
     };
   }
 
+  // Grants (or updates) a user's MANUAL subscription via the admin backoffice
+  // endpoint (POST /admin/users/:userId/subscriptions). The backend upserts the
+  // user's single manual subscription — it updates the existing one in place if
+  // present, or creates it otherwise — so this one call both sets and changes a
+  // plan. It rejects (409) only when the user has an active EXTERNAL (Stripe)
+  // subscription; that error is relayed verbatim. Admin-gated — a non-admin
+  // token gets a 403 we relay verbatim.
+  setSubscriptionForUser(
+    userId: string,
+    planCode: string,
+    currentPeriodEnd: string,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/users/${encodeURIComponent(userId)}/subscriptions`,
+      {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify({ planCode, currentPeriodEnd }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   // Updates any property by id via the admin backoffice endpoint
   // (PUT /admin/portfolios/:id). The backend resolves the owner from the
   // property id and runs the owner's own update path, so there's no separate

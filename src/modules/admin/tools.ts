@@ -20,6 +20,12 @@ import {
 
 const SUPPORTED_BUSINESS_TYPES = ["roomRent"] as const;
 
+// Subscription plan codes, mirroring the backend's PLAN_CODES. 'dev' is an
+// internal, unlimited tier — not sold publicly, only granted here. The backend
+// re-validates, so a stale entry degrades to a relayed 400 rather than a bad
+// write.
+const SUBSCRIPTION_PLAN_CODES = ["silver", "gold", "plat", "dev"] as const;
+
 // Registered ONLY for admin callers (see createMcpServer) — non-admins never
 // see these tools. The backend still enforces admin, so a stale registration
 // degrades to a relayed 403 rather than a data leak.
@@ -895,6 +901,89 @@ export function registerAdminTools(
         return text(
           `Added ${result.imagesAttached} re-hosted image(s) to property ${propertyId}.${linkNote}${delNote}${failNote}\n${result.body}`,
         );
+      },
+    ),
+  );
+
+  server.tool(
+    "admin_set_user_subscription",
+    "ADMIN ONLY. Set (or change) a user's subscription plan — grants a MANUAL " +
+      "subscription that overrides limits/features. Use this when an admin asks " +
+      "to put someone on a plan, e.g. give a user the internal 'dev' tier " +
+      "(unlimited listings + every feature) or move them to silver/gold/plat. " +
+      "Resolve the person to an id with find_users first and pass it as " +
+      "`userId`.\n\n" +
+      "This upserts the user's single manual subscription: it updates their " +
+      "existing manual plan in place if they have one, or creates it otherwise " +
+      "— so it both sets and changes a plan. `expiresAt` defaults to one year " +
+      "out; pass an ISO date to set a specific end. It is rejected only if the " +
+      "user has an active EXTERNAL (Stripe) subscription — relay that error " +
+      "verbatim. Plans: silver/gold/plat are the paid tiers; 'dev' is internal " +
+      "(unlimited), not something to sell.",
+    {
+      userId: z
+        .string()
+        .min(1)
+        .describe("The target user's id (from find_users)."),
+      planCode: z
+        .enum(SUBSCRIPTION_PLAN_CODES)
+        .describe(
+          "The plan to grant. 'silver'/'gold'/'plat' are paid tiers; 'dev' is " +
+            "the internal unlimited tier (no listing cap, all features).",
+        ),
+      expiresAt: z
+        .string()
+        .optional()
+        .describe(
+          "ISO date the subscription should expire, e.g. '2027-07-16'. " +
+            "Defaults to one year from now if omitted.",
+        ),
+    },
+    {
+      title: "Admin: set a user's subscription plan",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async (
+        {
+          userId,
+          planCode,
+          expiresAt,
+        }: { userId: string; planCode: string; expiresAt?: string },
+        { token },
+      ) => {
+        let currentPeriodEnd: string;
+        if (expiresAt) {
+          const parsed = new Date(expiresAt);
+          if (Number.isNaN(parsed.getTime())) {
+            return errorText(
+              `Invalid expiresAt "${expiresAt}" — pass an ISO date like '2027-07-16'.`,
+            );
+          }
+          currentPeriodEnd = parsed.toISOString();
+        } else {
+          const oneYearOut = new Date();
+          oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+          currentPeriodEnd = oneYearOut.toISOString();
+        }
+
+        const result = await api.setSubscriptionForUser(
+          userId,
+          planCode,
+          currentPeriodEnd,
+          token,
+        );
+        return result.ok
+          ? text(
+              `User ${userId} is now on the '${planCode}' plan (until ${currentPeriodEnd}).\n${result.body}`,
+            )
+          : errorText(
+              `Admin subscription change failed (status ${result.status}): ${result.body}`,
+            );
       },
     ),
   );

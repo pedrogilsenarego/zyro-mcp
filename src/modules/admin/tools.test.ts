@@ -51,6 +51,7 @@ test("registers exactly the admin tools", () => {
       "admin_list_user_listings",
       "admin_list_user_properties",
       "admin_set_listing_status",
+      "admin_set_user_subscription",
       "admin_update_listing",
       "admin_update_listing_images",
       "admin_update_property",
@@ -87,6 +88,15 @@ test("admin_list_user_listings is read-only and takes userId + optional limit", 
   const { shape, annotations } = registered().get("admin_list_user_listings")!;
   assert.deepEqual(sortedKeys(shape), ["limit", "userId"]);
   assert.equal(annotations?.readOnlyHint, true);
+});
+
+test("admin_set_user_subscription is a write keyed by userId + planCode, expiresAt optional", () => {
+  const { shape, annotations } = registered().get("admin_set_user_subscription")!;
+  assert.equal(annotations?.readOnlyHint, false);
+  assert.deepEqual(sortedKeys(shape), ["expiresAt", "planCode", "userId"]);
+  // Plan enum includes the internal 'dev' tier.
+  const planValues = (shape.planCode as z.ZodEnum<[string, ...string[]]>).options;
+  assert.deepEqual([...planValues].sort(), ["dev", "gold", "plat", "silver"]);
 });
 
 test("admin_create_listing is a write, requires userId + location, accepts images", () => {
