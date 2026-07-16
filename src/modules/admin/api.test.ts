@@ -408,6 +408,32 @@ test("updateListingForUser relays a 403 (non-admin) instead of throwing", async 
   assert.equal(result.status, 403);
 });
 
+test("setPublishStatusForUser POSTs isPublished to /admin/listings/:id/publish-status", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { id: "listing-9", isPublished: "active" } }),
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.setPublishStatusForUser("listing-9", "active", "admin-tok");
+
+  assert.equal(result.ok, true);
+  assert.equal(calls[0].path, "/admin/listings/listing-9/publish-status");
+  assert.equal(calls[0].opts.method, "POST");
+  assert.equal(calls[0].opts.accessToken, "admin-tok");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), { isPublished: "active" });
+});
+
+test("setPublishStatusForUser relays a plan-limit error verbatim", async () => {
+  const api = new AdminApi(
+    fakeClient({ ok: false, status: 403, body: "Active listing limit reached." }),
+  );
+  const result = await api.setPublishStatusForUser("listing-9", "active", "tok");
+  assert.equal(result.ok, false);
+  assert.equal(result.body, "Active listing limit reached.");
+});
+
 test("updatePropertyForUser relays a 403 (non-admin) instead of throwing", async () => {
   const api = new AdminApi(
     fakeClient({ ok: false, status: 403, body: "Forbidden" }),

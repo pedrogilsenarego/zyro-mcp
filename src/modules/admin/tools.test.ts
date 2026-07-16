@@ -48,6 +48,7 @@ test("registers exactly the admin tools", () => {
       "admin_get_listing",
       "admin_list_user_listings",
       "admin_list_user_properties",
+      "admin_set_listing_status",
       "admin_update_listing",
       "admin_update_property",
     ],

@@ -230,6 +230,27 @@ export class AdminApi {
     });
   }
 
+  // Sets any listing's publish status via the admin backoffice endpoint
+  // (POST /admin/listings/:id/publish-status). The backend resolves the owner
+  // and runs the owner's own updatePublishStatus path — so the plan active-
+  // listing cap, email-verification and other publish-time gates still apply
+  // (relayed verbatim on failure). Admin-gated — a non-admin token gets a 403.
+  setPublishStatusForUser(
+    listingId: string,
+    status: string,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/listings/${encodeURIComponent(listingId)}/publish-status`,
+      {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify({ isPublished: status }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   // Updates any listing by id via the admin backoffice endpoint
   // (PATCH /admin/listings/:id). The backend resolves the owner from the listing
   // id and runs the owner's own update path, so there's no separate write
