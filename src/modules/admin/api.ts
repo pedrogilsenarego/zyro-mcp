@@ -282,6 +282,7 @@ export class AdminApi {
     listingId: string,
     imageUrls: string[],
     imagesToDelete: string[],
+    linkImageUrls: string[],
     accessToken: string,
     fetchImpl: FetchLike = fetch,
   ): Promise<AdminCreateListingResult> {
@@ -292,6 +293,10 @@ export class AdminApi {
     }
     if (imagesToDelete.length > 0) {
       form.append("imagesToDelete", JSON.stringify(imagesToDelete));
+    }
+    // Stored verbatim by the BE (no re-host), eGO-style.
+    if (linkImageUrls.length > 0) {
+      form.append("imageUrls", JSON.stringify(linkImageUrls));
     }
 
     const res = await this.client.request(
@@ -361,6 +366,7 @@ export class AdminApi {
     propertyId: string,
     imageUrls: string[],
     imagesToDelete: string[],
+    linkImageUrls: string[],
     accessToken: string,
     fetchImpl: FetchLike = fetch,
   ): Promise<AdminCreateListingResult> {
@@ -371,6 +377,10 @@ export class AdminApi {
     }
     if (imagesToDelete.length > 0) {
       form.append("imagesToDelete", JSON.stringify(imagesToDelete));
+    }
+    // Stored verbatim by the BE (no re-host), eGO-style.
+    if (linkImageUrls.length > 0) {
+      form.append("imageUrls", JSON.stringify(linkImageUrls));
     }
 
     const res = await this.client.request(

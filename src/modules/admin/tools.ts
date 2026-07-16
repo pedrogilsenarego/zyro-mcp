@@ -375,27 +375,52 @@ export function registerAdminTools(
         .nullable()
         .optional()
         .describe("Source URL of the listing. Pass null to clear."),
+      location: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Place name to RE-GEOCODE the listing's map position, e.g. " +
+            "'Rua Carvalho Araújo, Arroios, Lisboa, Portugal'. Use to align a " +
+            "listing's coordinates with its property/house (pass the SAME place " +
+            "name used for the property so they match).",
+        ),
     },
     {
       title: "Admin: update a user's listing",
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: false,
+      // Geocodes `location` via an external service when passed.
+      openWorldHint: true,
     },
     authedHandler(
       deps,
       async (
-        { listingId, ...fields }: { listingId: string } & Record<string, unknown>,
+        {
+          listingId,
+          location,
+          ...fields
+        }: { listingId: string; location?: string } & Record<string, unknown>,
         { token },
       ) => {
         const input: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(fields)) {
           if (val !== undefined) input[key] = val;
         }
+        if (location) {
+          const geo = await listingsApi.geocode(location, token);
+          if (!geo) {
+            return errorText(
+              `Could not find a location for "${location}". Try a more specific place name (street + town + country).`,
+            );
+          }
+          input.latitude = geo.lat;
+          input.longitude = geo.lon;
+        }
         if (Object.keys(input).length === 0) {
           return errorText(
-            "Nothing to update — pass at least one field (e.g. availableFrom or rentPrice).",
+            "Nothing to update — pass at least one field (e.g. availableFrom, rentPrice or location).",
           );
         }
         const result = await api.updateListingForUser(
@@ -538,12 +563,14 @@ export function registerAdminTools(
   server.tool(
     "admin_update_listing_images",
     "ADMIN ONLY. Add and/or remove images on ANY listing by id — including one " +
-      "owned by another user (the backend resolves the owner). Pass `images` as " +
-      "PUBLIC image URLs to add (server downloads each, KEEPING existing images) " +
-      "and/or `imagesToDelete` as EXACT current image URLs to remove (copy them " +
-      "verbatim from the listing's `pictures` array — admin_get_listing). Adding " +
-      "does NOT work for images pasted into the chat — only fetchable URLs. Pass " +
-      "at least one of the two. Relay any backend error verbatim.",
+      "owned by another user (the backend resolves the owner). Two ways to add: " +
+      "`images` = PUBLIC URLs the server DOWNLOADS and re-hosts on our CDN " +
+      "(durable copies); `imageUrls` = PUBLIC URLs stored AS-IS by reference, no " +
+      "re-host (like the eGO feed — use when the source CDN is owned/stable). " +
+      "And/or `imagesToDelete` = EXACT current image URLs to remove (copy " +
+      "verbatim from the listing's `pictures`). Neither add form works for " +
+      "chat-pasted images — only fetchable URLs. Pass at least one. Relay any " +
+      "backend error verbatim.",
     {
       listingId: z.string().min(1).describe("The listing's id (UUID)."),
       images: z
@@ -551,8 +578,16 @@ export function registerAdminTools(
         .max(20)
         .optional()
         .describe(
-          "Public image URLs to add (max 20). The server downloads each and " +
-            "appends it to the listing's existing images.",
+          "Public image URLs to DOWNLOAD and re-host on our CDN (max 20), " +
+            "appended to the listing's existing images.",
+        ),
+      imageUrls: z
+        .array(z.string().url())
+        .max(20)
+        .optional()
+        .describe(
+          "Public image URLs to store AS-IS by reference (no re-host), " +
+            "eGO-style — appended to the listing's `pictures`.",
         ),
       imagesToDelete: z
         .array(z.string())
@@ -576,19 +611,26 @@ export function registerAdminTools(
         {
           listingId,
           images,
+          imageUrls,
           imagesToDelete,
-        }: { listingId: string; images?: string[]; imagesToDelete?: string[] },
+        }: {
+          listingId: string;
+          images?: string[];
+          imageUrls?: string[];
+          imagesToDelete?: string[];
+        },
         { token },
       ) => {
-        if (!images?.length && !imagesToDelete?.length) {
+        if (!images?.length && !imageUrls?.length && !imagesToDelete?.length) {
           return errorText(
-            "Nothing to do — pass `images` to add and/or `imagesToDelete` to remove.",
+            "Nothing to do — pass `images` (re-host) and/or `imageUrls` (link) to add, and/or `imagesToDelete` to remove.",
           );
         }
         const result = await api.addListingImagesForUser(
           listingId,
           images ?? [],
           imagesToDelete ?? [],
+          imageUrls ?? [],
           token,
         );
         if (!result.ok) {
@@ -599,11 +641,14 @@ export function registerAdminTools(
         const failNote = result.imagesFailed.length
           ? ` Couldn't fetch: ${result.imagesFailed.join(", ")}.`
           : "";
+        const linkNote = imageUrls?.length
+          ? ` Linked ${imageUrls.length} by URL.`
+          : "";
         const delNote = imagesToDelete?.length
           ? ` Removed ${imagesToDelete.length}.`
           : "";
         return text(
-          `Added ${result.imagesAttached} image(s) to listing ${listingId}.${delNote}${failNote}\n${result.body}`,
+          `Added ${result.imagesAttached} re-hosted image(s) to listing ${listingId}.${linkNote}${delNote}${failNote}\n${result.body}`,
         );
       },
     ),
@@ -762,13 +807,15 @@ export function registerAdminTools(
     "admin_update_property_images",
     "ADMIN ONLY. Add and/or remove images on a property (house/portfolio) by " +
       "id — including one owned by another user (the backend resolves the " +
-      "owner). Pass `images` as PUBLIC image URLs to add — use the shared " +
-      "HOUSE/common-area photos ONLY (kitchen, bathroom, living room, terrace, " +
-      "lobby); NEVER bedroom/room shots (those go on the room listing via " +
-      "admin_update_listing_images). And/or pass `imagesToDelete` as EXACT " +
+      "owner). Use the shared HOUSE/common-area photos ONLY (kitchen, bathroom, " +
+      "living room, terrace, lobby); NEVER bedroom/room shots (those go on the " +
+      "room listing via admin_update_listing_images). Two ways to add: `images` " +
+      "= PUBLIC URLs the server DOWNLOADS and re-hosts on our CDN; `imageUrls` = " +
+      "PUBLIC URLs stored AS-IS by reference, no re-host (like the eGO feed — " +
+      "use when the source CDN is owned/stable). And/or `imagesToDelete` = EXACT " +
       "current image URLs to remove (copy verbatim from the property's " +
-      "`imageUrls`). Adding needs fetchable URLs, not chat-pasted images. Pass " +
-      "at least one of the two. Relay any backend error verbatim.",
+      "`imageUrls`). Neither add form works for chat-pasted images. Pass at " +
+      "least one. Relay any backend error verbatim.",
     {
       propertyId: z.string().min(1).describe("The property's id (UUID)."),
       images: z
@@ -776,8 +823,16 @@ export function registerAdminTools(
         .max(20)
         .optional()
         .describe(
-          "Public image URLs to add (max 20). The server downloads each and " +
-            "appends it to the property's existing images.",
+          "Public image URLs to DOWNLOAD and re-host on our CDN (max 20), " +
+            "appended to the property's existing images.",
+        ),
+      imageUrls: z
+        .array(z.string().url())
+        .max(20)
+        .optional()
+        .describe(
+          "Public image URLs to store AS-IS by reference (no re-host), " +
+            "eGO-style — appended to the property's `imageUrls`.",
         ),
       imagesToDelete: z
         .array(z.string())
@@ -801,19 +856,26 @@ export function registerAdminTools(
         {
           propertyId,
           images,
+          imageUrls,
           imagesToDelete,
-        }: { propertyId: string; images?: string[]; imagesToDelete?: string[] },
+        }: {
+          propertyId: string;
+          images?: string[];
+          imageUrls?: string[];
+          imagesToDelete?: string[];
+        },
         { token },
       ) => {
-        if (!images?.length && !imagesToDelete?.length) {
+        if (!images?.length && !imageUrls?.length && !imagesToDelete?.length) {
           return errorText(
-            "Nothing to do — pass `images` to add and/or `imagesToDelete` to remove.",
+            "Nothing to do — pass `images` (re-host) and/or `imageUrls` (link) to add, and/or `imagesToDelete` to remove.",
           );
         }
         const result = await api.addPropertyImagesForUser(
           propertyId,
           images ?? [],
           imagesToDelete ?? [],
+          imageUrls ?? [],
           token,
         );
         if (!result.ok) {
@@ -824,11 +886,14 @@ export function registerAdminTools(
         const failNote = result.imagesFailed.length
           ? ` Couldn't fetch: ${result.imagesFailed.join(", ")}.`
           : "";
+        const linkNote = imageUrls?.length
+          ? ` Linked ${imageUrls.length} by URL.`
+          : "";
         const delNote = imagesToDelete?.length
           ? ` Removed ${imagesToDelete.length}.`
           : "";
         return text(
-          `Added ${result.imagesAttached} image(s) to property ${propertyId}.${delNote}${failNote}\n${result.body}`,
+          `Added ${result.imagesAttached} re-hosted image(s) to property ${propertyId}.${linkNote}${delNote}${failNote}\n${result.body}`,
         );
       },
     ),
