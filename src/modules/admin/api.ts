@@ -375,6 +375,8 @@ export class AdminApi {
     imageUrls: string[],
     imagesToDelete: string[],
     linkImageUrls: string[],
+    linkThumbnailUrls: string[],
+    thumbnailsToDelete: string[],
     accessToken: string,
     fetchImpl: FetchLike = fetch,
   ): Promise<AdminCreateListingResult> {
@@ -386,9 +388,16 @@ export class AdminApi {
     if (imagesToDelete.length > 0) {
       form.append("imagesToDelete", JSON.stringify(imagesToDelete));
     }
-    // Stored verbatim by the BE (no re-host), eGO-style.
+    // Stored verbatim by the BE (no re-host), eGO-style. Properties carry a
+    // `thumbnails` column too, index-aligned with `imageUrls`.
     if (linkImageUrls.length > 0) {
       form.append("imageUrls", JSON.stringify(linkImageUrls));
+    }
+    if (linkThumbnailUrls.length > 0) {
+      form.append("thumbnailUrls", JSON.stringify(linkThumbnailUrls));
+    }
+    if (thumbnailsToDelete.length > 0) {
+      form.append("thumbnailsToDelete", JSON.stringify(thumbnailsToDelete));
     }
 
     const res = await this.client.request(

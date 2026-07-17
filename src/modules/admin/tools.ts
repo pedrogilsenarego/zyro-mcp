@@ -909,12 +909,29 @@ export function registerAdminTools(
           "Public image URLs to store AS-IS by reference (no re-host), " +
             "eGO-style — appended to the property's `imageUrls`.",
         ),
+      thumbnailUrls: z
+        .array(z.string().url())
+        .max(20)
+        .optional()
+        .describe(
+          "Small-variant image URLs stored AS-IS by reference into the " +
+            "property's `thumbnails` array (eGO-style: imageUrls=full, " +
+            "thumbnails=small), index-aligned with `imageUrls`. Cards read " +
+            "thumbnails; the gallery reads imageUrls.",
+        ),
       imagesToDelete: z
         .array(z.string())
         .optional()
         .describe(
           "Exact current image URLs to remove — must match entries in the " +
             "property's `imageUrls` verbatim.",
+        ),
+      thumbnailsToDelete: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Exact current thumbnail URLs to remove — must match entries in " +
+            "the property's `thumbnails` array verbatim.",
         ),
     },
     {
@@ -932,18 +949,28 @@ export function registerAdminTools(
           propertyId,
           images,
           imageUrls,
+          thumbnailUrls,
           imagesToDelete,
+          thumbnailsToDelete,
         }: {
           propertyId: string;
           images?: string[];
           imageUrls?: string[];
+          thumbnailUrls?: string[];
           imagesToDelete?: string[];
+          thumbnailsToDelete?: string[];
         },
         { token },
       ) => {
-        if (!images?.length && !imageUrls?.length && !imagesToDelete?.length) {
+        if (
+          !images?.length &&
+          !imageUrls?.length &&
+          !thumbnailUrls?.length &&
+          !imagesToDelete?.length &&
+          !thumbnailsToDelete?.length
+        ) {
           return errorText(
-            "Nothing to do — pass `images` (re-host) and/or `imageUrls` (link) to add, and/or `imagesToDelete` to remove.",
+            "Nothing to do — pass `images` (re-host) and/or `imageUrls`/`thumbnailUrls` (link) to add, and/or `imagesToDelete`/`thumbnailsToDelete` to remove.",
           );
         }
         const result = await api.addPropertyImagesForUser(
@@ -951,6 +978,8 @@ export function registerAdminTools(
           images ?? [],
           imagesToDelete ?? [],
           imageUrls ?? [],
+          thumbnailUrls ?? [],
+          thumbnailsToDelete ?? [],
           token,
         );
         if (!result.ok) {
@@ -964,11 +993,17 @@ export function registerAdminTools(
         const linkNote = imageUrls?.length
           ? ` Linked ${imageUrls.length} by URL.`
           : "";
+        const thumbNote = thumbnailUrls?.length
+          ? ` Linked ${thumbnailUrls.length} thumbnail(s).`
+          : "";
         const delNote = imagesToDelete?.length
           ? ` Removed ${imagesToDelete.length}.`
           : "";
+        const thumbDelNote = thumbnailsToDelete?.length
+          ? ` Removed ${thumbnailsToDelete.length} thumbnail(s).`
+          : "";
         return text(
-          `Added ${result.imagesAttached} re-hosted image(s) to property ${propertyId}.${linkNote}${delNote}${failNote}\n${result.body}`,
+          `Added ${result.imagesAttached} re-hosted image(s) to property ${propertyId}.${linkNote}${thumbNote}${delNote}${thumbDelNote}${failNote}\n${result.body}`,
         );
       },
     ),
