@@ -425,6 +425,25 @@ export class AdminApi {
     );
   }
 
+  // Deletes any property by id via the admin backoffice endpoint
+  // (DELETE /admin/portfolios/:id). The backend resolves the owner from the
+  // property id and runs the owner's own removeProperty path (cascades its
+  // businesses, units and payment links, releases images), so there's no
+  // separate delete behaviour to drift. Admin-gated — a non-admin token gets a
+  // 403 we relay verbatim.
+  deletePropertyForUser(
+    propertyId: string,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/admin/portfolios/${encodeURIComponent(propertyId)}`,
+      {
+        method: "DELETE",
+        accessToken,
+      },
+    );
+  }
+
   // Updates any property by id via the admin backoffice endpoint
   // (PUT /admin/portfolios/:id). The backend resolves the owner from the
   // property id and runs the owner's own update path, so there's no separate

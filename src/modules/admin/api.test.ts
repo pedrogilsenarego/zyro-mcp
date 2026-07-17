@@ -336,6 +336,23 @@ test("updatePropertyForUser PUTs the fields as JSON to /admin/portfolios/:id", a
   });
 });
 
+test("deletePropertyForUser DELETEs /admin/portfolios/:id", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: { deletedAt: "2026-07-17T00:00:00Z" } }),
+  });
+  const api = new AdminApi(client);
+
+  const result = await api.deletePropertyForUser("prop-9", "admin-tok");
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/admin/portfolios/prop-9");
+  assert.equal(calls[0].opts.method, "DELETE");
+  assert.equal(calls[0].opts.accessToken, "admin-tok");
+});
+
 test("createPropertyForUser POSTs the owner id + property form to /admin/portfolios", async () => {
   const { client, calls } = capturingClient({
     ok: true,

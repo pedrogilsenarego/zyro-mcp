@@ -810,6 +810,41 @@ export function registerAdminTools(
   );
 
   server.tool(
+    "admin_delete_property",
+    "ADMIN ONLY. Permanently remove a property (house/portfolio) by id — " +
+      "including one owned by another user (the backend resolves the owner from " +
+      "the id and runs the owner's own delete). This cascades: the property's " +
+      "businesses, room units and their payment links go too, and its images are " +
+      "released. Any room listings under it are NOT auto-deleted — delete those " +
+      "first with admin_delete_listing if you want them gone. Use to clean up a " +
+      "property created by mistake or one that can't be sourced. Destructive and " +
+      "cannot be undone from here — get the id from admin_list_user_properties " +
+      "and be sure it's the right one; never guess it. Relay any backend error " +
+      "verbatim.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+    },
+    {
+      title: "Admin: delete a user's property",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ propertyId }: { propertyId: string }, { token }) => {
+        const result = await api.deletePropertyForUser(propertyId, token);
+        return result.ok
+          ? text(`Property ${propertyId} deleted.\n${result.body}`)
+          : errorText(
+              `Admin property deletion failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
     "admin_update_property_images",
     "ADMIN ONLY. Add and/or remove images on a property (house/portfolio) by " +
       "id — including one owned by another user (the backend resolves the " +

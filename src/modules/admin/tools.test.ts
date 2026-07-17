@@ -47,6 +47,7 @@ test("registers exactly the admin tools", () => {
       "admin_create_listing",
       "admin_create_property",
       "admin_delete_listing",
+      "admin_delete_property",
       "admin_get_listing",
       "admin_list_user_listings",
       "admin_list_user_properties",
@@ -80,6 +81,15 @@ test("admin_update_property is a write keyed by propertyId, no userId needed", (
   assert.ok("propertyId" in shape);
   assert.ok("location" in shape);
   assert.ok("marketValue" in shape);
+  // Owner is resolved from the property id on the backend — no user id arg.
+  assert.ok(!("userId" in shape));
+});
+
+test("admin_delete_property is a destructive write keyed by propertyId, no userId needed", () => {
+  const { shape, annotations } = registered().get("admin_delete_property")!;
+  assert.deepEqual(sortedKeys(shape), ["propertyId"]);
+  assert.equal(annotations?.readOnlyHint, false);
+  assert.equal(annotations?.destructiveHint, true);
   // Owner is resolved from the property id on the backend — no user id arg.
   assert.ok(!("userId" in shape));
 });
