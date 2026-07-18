@@ -23,7 +23,7 @@ export interface AdminListingSummary {
   id: string;
   title: string | null;
   listingType: string | null;
-  // Publish status: active | draft | inactive | rented (admins see all).
+  // Publish status: active | draft | inactive (admins see all).
   status: string | null;
   createdAt: string | null;
   ownerId: string | null;

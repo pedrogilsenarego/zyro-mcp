@@ -447,8 +447,8 @@ export function registerAdminTools(
     "admin_set_listing_status",
     "ADMIN ONLY. Set the publish status of ANY listing by id — including one " +
       "owned by another user (the backend resolves the owner). 'active' = " +
-      "publicly visible and matched against demand; 'inactive'/'draft' = hidden; " +
-      "'rented' = marked taken. Use to publish imported drafts once reviewed. " +
+      "publicly visible and matched against demand; 'inactive'/'draft' = hidden. " +
+      "Use to publish imported drafts once reviewed. " +
       "Publish-time gates still apply (plan active-listing cap, email " +
       "verification) — relay any backend error verbatim.",
     {
@@ -456,7 +456,7 @@ export function registerAdminTools(
       status: z
         .enum(PUBLISH_STATUSES)
         .describe(
-          "New publish status. 'active' publishes it publicly; 'inactive'/'draft' hide it; 'rented' marks it taken.",
+          "New publish status. 'active' publishes it publicly; 'inactive'/'draft' hide it.",
         ),
     },
     {

@@ -350,8 +350,8 @@ export function registerListingTools(
     "set_listing_status",
     "Set the publish status of one of the authenticated user's listings by id. " +
       "'active' = publicly visible to renters and matched against demand; " +
-      "'inactive' and 'draft' = hidden from the public; 'rented' = marked as " +
-      "taken. The id comes from a prior list_listings / create_listing result — " +
+      "'inactive' and 'draft' = hidden from the public. The id comes from a " +
+      "prior list_listings / create_listing result — " +
       "never guess it.\n\n" +
       "Before setting a listing to 'active', first confirm its current price and " +
       "availability date with the user: read them via list_listings, state them " +
@@ -366,7 +366,7 @@ export function registerListingTools(
       status: z
         .enum(PUBLISH_STATUSES)
         .describe(
-          "New publish status. 'active' publishes it publicly; 'inactive'/'draft' hide it; 'rented' marks it taken.",
+          "New publish status. 'active' publishes it publicly; 'inactive'/'draft' hide it.",
         ),
     },
     {
