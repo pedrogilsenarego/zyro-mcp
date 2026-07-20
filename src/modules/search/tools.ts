@@ -35,10 +35,27 @@ export function registerSearchTools(
           "Local (Portuguese) place name to filter by, e.g. 'lisboa', 'porto', " +
             "'cascais'. Matches the administrative area name exactly (lowercased).",
         ),
-      sort: z
-        .enum(["newest", "oldest", "priceAsc", "priceDesc"])
+      propertyType: z
+        .string()
         .optional()
-        .describe("Result ordering. 'newest' = most recently added first."),
+        .describe(
+          "realEstateType filter, e.g. '1' (apartment). Comma-separated allowed. " +
+            "The FE applies this by default for buy — pass it to measure the real query.",
+        ),
+      availableFrom: z
+        .enum(["now", "1m", "2m", "6m", "1y"])
+        .optional()
+        .describe(
+          "Room availability horizon (roomRent only). The FE default room search " +
+            "sends '1m'. Pass it to measure the real query.",
+        ),
+      sort: z
+        .enum(["newest", "oldest", "updated", "priceAsc", "priceDesc"])
+        .optional()
+        .describe(
+          "Result ordering. 'newest'/'oldest' = createdAt; 'updated' = updatedAt " +
+            "desc (the FE default); 'priceAsc'/'priceDesc' = price.",
+        ),
       limit: z
         .number()
         .int()
@@ -46,6 +63,17 @@ export function registerSearchTools(
         .max(100)
         .optional()
         .describe("Max results to return (default 20)."),
+      runs: z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .optional()
+        .describe(
+          "Fire the identical query N times back-to-back (default 1) and report " +
+            "each backend time. Use to tell a steady cost (consistent ms) from a " +
+            "busy/cold server (erratic ms) or the 60s cache (later runs near 0).",
+        ),
     },
     {
       title: "Search public listings",
@@ -58,13 +86,19 @@ export function registerSearchTools(
         {
           businessType,
           location,
+          propertyType,
+          availableFrom,
           sort,
           limit,
+          runs,
         }: {
           businessType?: "room" | "buy" | "rent" | "auction";
           location?: string;
-          sort?: "newest" | "oldest" | "priceAsc" | "priceDesc";
+          propertyType?: string;
+          availableFrom?: "now" | "1m" | "2m" | "6m" | "1y";
+          sort?: "newest" | "oldest" | "updated" | "priceAsc" | "priceDesc";
           limit?: number;
+          runs?: number;
         },
         { token },
       ) => {
@@ -81,6 +115,7 @@ export function registerSearchTools(
         > = {
           newest: { sortBy: "createdAt", sortDir: "desc" },
           oldest: { sortBy: "createdAt", sortDir: "asc" },
+          updated: { sortBy: "updatedAt", sortDir: "desc" },
           priceDesc: {
             sortBy: resolvedBusinessType === "sale" ? "salePrice" : "rentPrice",
             sortDir: "desc",
@@ -91,28 +126,44 @@ export function registerSearchTools(
           },
         };
         const sortOpt = sort ? sortMap[sort] : undefined;
+        const params = {
+          businessType: resolvedBusinessType,
+          locationName: location?.trim().toLowerCase() || undefined,
+          realEstateType: propertyType,
+          availableFrom:
+            resolvedBusinessType === "roomRent" ? availableFrom : undefined,
+          limit,
+          sortBy: sortOpt?.sortBy,
+          sortDir: sortOpt?.sortDir,
+        };
 
-        const result = await api.searchPublicListings(
-          {
-            businessType: resolvedBusinessType,
-            locationName: location?.trim().toLowerCase() || undefined,
-            limit,
-            sortBy: sortOpt?.sortBy,
-            sortDir: sortOpt?.sortDir,
-          },
-          token,
-        );
-        if (!result.ok) {
-          return errorText(
-            `Search failed (status ${result.status}, ${result.ms}ms): ${result.body}`,
-          );
+        const n = runs ?? 1;
+        const times: number[] = [];
+        let last: Awaited<ReturnType<typeof api.searchPublicListings>> | null =
+          null;
+        for (let i = 0; i < n; i += 1) {
+          last = await api.searchPublicListings(params, token);
+          times.push(last.ms);
+          if (!last.ok) {
+            return errorText(
+              `Search failed on run ${i + 1} (status ${last.status}, ${last.ms}ms): ${last.body}`,
+            );
+          }
         }
+        // The loop returns early on any failure, so this is always a success.
+        const result = last!;
+        const timing =
+          n === 1
+            ? `backend ${times[0]}ms`
+            : `backend runs ms=[${times.join(", ")}] (min ${Math.min(
+                ...times,
+              )}, max ${Math.max(...times)})`;
         const header =
           `${result.total} match(es)` +
           (resolvedBusinessType === "roomRent"
             ? ` (${result.totalListings} room(s) across those houses)`
             : "") +
-          `, showing ${result.listings.length} — backend ${result.ms}ms:`;
+          `, showing ${result.listings.length} — ${timing}:`;
         return text(`${header}\n${JSON.stringify(result.listings, null, 2)}`);
       },
     ),

@@ -62,9 +62,12 @@ test("registers exactly the search tools", () => {
 test("search_listings exposes public-search fields and is read-only", () => {
   const { shape, annotations } = registered().get("search_listings")!;
   assert.deepEqual(sortedKeys(shape), [
+    "availableFrom",
     "businessType",
     "limit",
     "location",
+    "propertyType",
+    "runs",
     "sort",
   ]);
   assert.equal(annotations?.readOnlyHint, true);
@@ -81,7 +84,15 @@ test("search_listings enums accept the intended values", () => {
   assert.deepEqual(enumOptionsOf(shape.sort), [
     "newest",
     "oldest",
+    "updated",
     "priceAsc",
     "priceDesc",
+  ]);
+  assert.deepEqual(enumOptionsOf(shape.availableFrom), [
+    "now",
+    "1m",
+    "2m",
+    "6m",
+    "1y",
   ]);
 });
