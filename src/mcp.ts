@@ -15,6 +15,8 @@ import { UsersApi } from "./modules/users/api.js";
 import { registerUserTools } from "./modules/users/tools.js";
 import { AdminApi } from "./modules/admin/api.js";
 import { registerAdminTools } from "./modules/admin/tools.js";
+import { SearchApi } from "./modules/search/api.js";
+import { registerSearchTools } from "./modules/search/tools.js";
 import { resolveRole, isAdminRole } from "./modules/identity.js";
 
 /**
@@ -55,6 +57,7 @@ export async function createMcpServer(
   registerPaymentTools(server, new PaymentsApi(client), deps);
   registerEventTools(server, new EventsApi(client), deps);
   registerUserTools(server, new UsersApi(client), deps);
+  registerSearchTools(server, new SearchApi(client), deps);
 
   // Admin-only tools are registered conditionally so non-admins never see them
   // in the tool list. Role comes from /me (cached); the backend still enforces
