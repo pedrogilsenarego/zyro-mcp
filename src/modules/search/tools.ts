@@ -42,6 +42,14 @@ export function registerSearchTools(
           "realEstateType filter, e.g. '1' (apartment). Comma-separated allowed. " +
             "The FE applies this by default for buy — pass it to measure the real query.",
         ),
+      typology: z
+        .string()
+        .optional()
+        .describe(
+          "Typology / bedroom count filter (buy & rent, not rooms). PT convention: " +
+            "comma-separated exact values where the top value is open-ended, e.g. " +
+            "'2' = T2 only, '1,3' = T1 or T3, '5' = T5+ (5 or more bedrooms).",
+        ),
       availableFrom: z
         .enum(["now", "1m", "2m", "6m", "1y"])
         .optional()
@@ -87,6 +95,7 @@ export function registerSearchTools(
           businessType,
           location,
           propertyType,
+          typology,
           availableFrom,
           sort,
           limit,
@@ -95,6 +104,7 @@ export function registerSearchTools(
           businessType?: "room" | "buy" | "rent" | "auction";
           location?: string;
           propertyType?: string;
+          typology?: string;
           availableFrom?: "now" | "1m" | "2m" | "6m" | "1y";
           sort?: "newest" | "oldest" | "updated" | "priceAsc" | "priceDesc";
           limit?: number;
@@ -130,6 +140,8 @@ export function registerSearchTools(
           businessType: resolvedBusinessType,
           locationName: location?.trim().toLowerCase() || undefined,
           realEstateType: propertyType,
+          bedroomsIn:
+            resolvedBusinessType === "roomRent" ? undefined : typology,
           availableFrom:
             resolvedBusinessType === "roomRent" ? availableFrom : undefined,
           limit,

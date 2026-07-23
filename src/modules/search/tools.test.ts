@@ -69,6 +69,7 @@ test("search_listings exposes public-search fields and is read-only", () => {
     "propertyType",
     "runs",
     "sort",
+    "typology",
   ]);
   assert.equal(annotations?.readOnlyHint, true);
 });

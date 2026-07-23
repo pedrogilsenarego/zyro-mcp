@@ -6,6 +6,7 @@ export type SearchListingsParams = {
   businessType?: SearchBusinessType;
   locationName?: string;
   realEstateType?: string;
+  bedroomsIn?: string;
   availableFrom?: string;
   limit?: number;
   page?: number;
@@ -58,6 +59,7 @@ export class SearchApi {
     // The real FE default search always carries these — include them so timing
     // tests measure the query the app actually runs, not a simplified one.
     if (params.realEstateType) qs.set("realEstateType", params.realEstateType);
+    if (params.bedroomsIn) qs.set("bedroomsIn", params.bedroomsIn);
     if (params.availableFrom) qs.set("availableFrom", params.availableFrom);
     qs.set("limit", String(params.limit ?? 20));
     qs.set("page", String(params.page ?? 1));
