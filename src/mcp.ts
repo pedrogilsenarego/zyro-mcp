@@ -5,6 +5,8 @@ import { ListingsApi } from "./modules/listings/api.js";
 import { registerListingTools } from "./modules/listings/tools.js";
 import { GuestsApi } from "./modules/guests/api.js";
 import { registerGuestTools } from "./modules/guests/tools.js";
+import { NotificationsApi } from "./modules/notifications/api.js";
+import { registerNotificationTools } from "./modules/notifications/tools.js";
 import { PropertiesApi } from "./modules/properties/api.js";
 import { registerPropertyTools } from "./modules/properties/tools.js";
 import { PaymentsApi } from "./modules/payments/api.js";
@@ -53,6 +55,7 @@ export async function createMcpServer(
   const listingsApi = new ListingsApi(client);
   registerListingTools(server, listingsApi, deps);
   registerGuestTools(server, new GuestsApi(client), deps);
+  registerNotificationTools(server, new NotificationsApi(client), deps);
   registerPropertyTools(server, new PropertiesApi(client), listingsApi, deps);
   registerPaymentTools(server, new PaymentsApi(client), deps);
   registerEventTools(server, new EventsApi(client), deps);

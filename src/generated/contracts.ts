@@ -20,6 +20,8 @@ export type PaymentTypeName = (typeof PAYMENT_TYPE_NAMES)[number];
 export const PAYMENT_TYPE_CODE = {"electricity":"1","water":"2","internet":"3","gas":"4","leaseRent":"5","credit":"6","house":"7","cleaning":"8","adjustment":"9","management":"10","taxes":"11","condominium":"12","constructionLabors":"13"} as const;
 export const EVENT_TYPES = ["lease","labors","tax_imi","condominium","credit","airbnb_reservation","blocked"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
+export const NOTIFICATION_TYPES = ["connection_request","property_share","property_share_accepted","group_invite","subscription_ending","news","system","al_check_in_submitted","listing_auto_deactivated","listing_match","listing_price_change","other"] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export type CreateListingBase = {
   title: string;
