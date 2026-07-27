@@ -1,5 +1,7 @@
-# Public HTTPS entrypoint. Caddy auto-provisions a TLS cert for this domain.
+# Public HTTPS entrypoint. Caddy auto-provisions a TLS cert for each domain.
 # Only zyro-mcp is exposed publicly; the imocerto BE is not.
-mcp.zyr-o.app {
+# Both hosts are served during the zyr-o.app -> casastep.com migration; the
+# canonical OAuth issuer is set via PUBLIC_URL (mcp.casastep.com).
+mcp.casastep.com, mcp.zyr-o.app {
     reverse_proxy zyro-mcp:8080
 }
