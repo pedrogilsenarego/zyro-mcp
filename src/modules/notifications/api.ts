@@ -1,4 +1,5 @@
 import type { BackendClient } from "../../backend/client.js";
+import type { NotificationType } from "../../generated/contracts.js";
 
 // Raw BE fields the adapter reads off each notification row; the contract test
 // asserts they still exist on GET /notifications.
@@ -16,8 +17,7 @@ export const NOTIFICATION_SOURCE_FIELDS = [
 
 export interface NotificationSummary {
   id: string;
-  // e.g. 'listing_match' | 'al_check_in_submitted' | 'property_share_accepted'.
-  notificationType: string | null;
+  notificationType: NotificationType | null;
   resourceId: string | null;
   title: string | null;
   message: string | null;
@@ -75,7 +75,7 @@ function toSummaries(body: string): NotificationSummary[] {
     const r = row as Record<string, unknown>;
     return {
       id: String(r.id ?? ""),
-      notificationType: str(r.notificationType),
+      notificationType: str(r.notificationType) as NotificationType | null,
       resourceId: str(r.resourceId),
       title: str(r.title),
       message: str(r.message),
