@@ -1091,4 +1091,70 @@ export function registerAdminTools(
       },
     ),
   );
+
+  server.tool(
+    "admin_create_user",
+    "ADMIN ONLY. Create a new platform user (e.g. onboarding an operator like " +
+      "an agency whose inventory you'll then import on their behalf). Pass " +
+      "email + name; `role` defaults to 'user' and `emailVerified` to true so " +
+      "the account is immediately usable. `password` is optional — omit it for " +
+      "a passwordless account the owner can set later via reset. Returns the " +
+      "created user's id (use it as `userId` for the admin_* tools). Fails 409 " +
+      "if the email already exists — relayed verbatim; check find_users first.",
+    {
+      email: z.string().min(1).describe("The new user's email (login)."),
+      name: z.string().min(1).describe("The new user's display name."),
+      role: z
+        .enum(["user", "manager", "admin", "imocerto"])
+        .optional()
+        .default("user")
+        .describe("Account role. Default 'user' (a normal owner account)."),
+      emailVerified: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("Mark the email verified so the account works immediately."),
+      password: z
+        .string()
+        .min(8)
+        .optional()
+        .describe("Optional password (min 8). Omit for a passwordless account."),
+    },
+    {
+      title: "Admin: create a user",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async (
+        {
+          email,
+          name,
+          role,
+          emailVerified,
+          password,
+        }: {
+          email: string;
+          name: string;
+          role: string;
+          emailVerified: boolean;
+          password?: string;
+        },
+        { token },
+      ) => {
+        const result = await api.createUser(
+          { email, name, role, emailVerified, password },
+          token,
+        );
+        return result.ok
+          ? text(`Created user '${name}' <${email}> (role ${role}).\n${result.body}`)
+          : errorText(
+              `Admin create user failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
 }

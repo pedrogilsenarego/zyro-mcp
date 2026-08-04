@@ -442,6 +442,26 @@ export class AdminApi {
     );
   }
 
+  // Creates a user via POST /admin/users (BE validates, hashes password,
+  // 409 on duplicate email). Admin-gated; 403 relayed verbatim.
+  createUser(
+    input: {
+      email: string;
+      name: string;
+      role: string;
+      emailVerified: boolean;
+      password?: string;
+    },
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request("/admin/users", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   // Deletes any property by id via the admin backoffice endpoint
   // (DELETE /admin/portfolios/:id). The backend resolves the owner from the
   // property id and runs the owner's own removeProperty path (cascades its
