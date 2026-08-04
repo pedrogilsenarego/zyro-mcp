@@ -5,3 +5,7 @@
 mcp.casastep.com, mcp.zyr-o.app {
     reverse_proxy zyro-mcp:8080
 }
+
+img.zyr-o.app {
+    reverse_proxy zyro-imgproxy:8080
+}
