@@ -103,6 +103,22 @@ test("listUserListings requests /admin/listings scoped to the userId with the to
   assert.equal(calls[0].opts.method, undefined);
 });
 
+test("listUserListings adds page only when paginating past the first page", async () => {
+  const { client, calls } = capturingClient({
+    ok: true,
+    status: 200,
+    body: JSON.stringify({ data: [], pagination: { total: 0 } }),
+  });
+  const api = new AdminApi(client);
+
+  await api.listUserListings("owner-1", 100, "tok", 1);
+  await api.listUserListings("owner-1", 100, "tok", 3);
+
+  // page 1 is the default — omitted from the query.
+  assert.equal(calls[0].path, "/admin/listings?userId=owner-1&limit=100");
+  assert.equal(calls[1].path, "/admin/listings?userId=owner-1&limit=100&page=3");
+});
+
 test("listUserListings relays a 403 (non-admin) instead of throwing", async () => {
   const api = new AdminApi(
     fakeClient({ ok: false, status: 403, body: '{"error":"Forbidden"}' }),

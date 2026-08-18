@@ -95,9 +95,9 @@ test("admin_delete_property is a destructive write keyed by propertyId, no userI
   assert.ok(!("userId" in shape));
 });
 
-test("admin_list_user_listings is read-only and takes userId + optional limit", () => {
+test("admin_list_user_listings is read-only and takes userId + optional limit/page", () => {
   const { shape, annotations } = registered().get("admin_list_user_listings")!;
-  assert.deepEqual(sortedKeys(shape), ["limit", "userId"]);
+  assert.deepEqual(sortedKeys(shape), ["limit", "page", "userId"]);
   assert.equal(annotations?.readOnlyHint, true);
 });
 

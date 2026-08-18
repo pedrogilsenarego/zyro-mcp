@@ -58,7 +58,17 @@ export function registerAdminTools(
         .positive()
         .max(100)
         .optional()
-        .describe("Max listings to return (default 50)."),
+        .describe("Max listings per page (default 50, max 100)."),
+      page: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe(
+          "1-based page for paginating past the limit (default 1). " +
+            "total in the response is the full count — page through it " +
+            "(ceil(total/limit) pages) to enumerate every listing.",
+        ),
     },
     {
       title: "Admin: list a user's listings",
@@ -67,8 +77,11 @@ export function registerAdminTools(
     },
     authedHandler(
       deps,
-      async ({ userId, limit }: { userId: string; limit?: number }, { token }) => {
-        const result = await api.listUserListings(userId, limit ?? 50, token);
+      async (
+        { userId, limit, page }: { userId: string; limit?: number; page?: number },
+        { token },
+      ) => {
+        const result = await api.listUserListings(userId, limit ?? 50, token, page ?? 1);
         if (!result.ok) {
           return errorText(
             `Could not list the user's listings (status ${result.status}): ${result.body}`,

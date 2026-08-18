@@ -152,8 +152,10 @@ export class AdminApi {
     userId: string,
     limit: number,
     accessToken: string,
+    page = 1,
   ): Promise<ListUserListingsResult> {
     const qs = new URLSearchParams({ userId, limit: String(limit) });
+    if (page > 1) qs.set("page", String(page));
     const res = await this.client.request(`/admin/listings?${qs.toString()}`, {
       accessToken,
     });
