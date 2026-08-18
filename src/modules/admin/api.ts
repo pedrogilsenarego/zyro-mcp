@@ -11,9 +11,14 @@ import { buildPropertyForm, type CreatePropertyInput } from "../properties/api.j
 export const ADMIN_LISTING_SOURCE_FIELDS = [
   "id",
   "title",
+  "reference",
+  "propertyUrl",
   "listingType",
   "isPublished",
   "createdAt",
+  "rentPrice",
+  "deposit",
+  "availableFrom",
   "ownerId",
   "ownerName",
   "ownerEmail",
@@ -22,10 +27,19 @@ export const ADMIN_LISTING_SOURCE_FIELDS = [
 export interface AdminListingSummary {
   id: string;
   title: string | null;
+  // Source room code (e.g. the imported site's short_id) and canonical URL —
+  // let an admin dedup/diff against a source feed without a per-listing fetch.
+  reference: string | null;
+  propertyUrl: string | null;
   listingType: string | null;
   // Publish status: active | draft | inactive (admins see all).
   status: string | null;
   createdAt: string | null;
+  // Rent (EUR), room deposit (EUR) and availability date — enough to reconcile
+  // price/availability drift against a source feed in bulk.
+  rentPrice: string | null;
+  deposit: string | null;
+  availableFrom: string | null;
   ownerId: string | null;
   ownerName: string | null;
   ownerEmail: string | null;
@@ -571,9 +585,14 @@ function toSummaries(body: string): {
     return {
       id: String(r.id ?? ""),
       title: str(r.title),
+      reference: str(r.reference),
+      propertyUrl: str(r.propertyUrl),
       listingType: str(r.listingType),
       status: str(r.isPublished),
       createdAt: str(r.createdAt),
+      rentPrice: str(r.rentPrice),
+      deposit: str(r.deposit),
+      availableFrom: str(r.availableFrom),
       ownerId: str(r.ownerId),
       ownerName: str(r.ownerName),
       ownerEmail: str(r.ownerEmail),

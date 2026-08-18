@@ -30,9 +30,14 @@ const RAW_BODY = JSON.stringify({
     {
       id: "l-1",
       title: "Quarto Areeiro",
+      reference: "AbC12345",
+      propertyUrl: "https://example.com/room/areeiro-AbC12345",
       listingType: "supply",
       isPublished: "draft",
       createdAt: "2026-01-01T00:00:00.000Z",
+      rentPrice: "575.00",
+      deposit: "575.00",
+      availableFrom: "2027-02-01T00:00:00.000Z",
       ownerId: "owner-1",
       ownerName: "Ana",
       ownerEmail: "ana@example.com",
@@ -72,6 +77,13 @@ test("listUserListings maps rows and reads the pagination total", async () => {
   assert.equal(draft.status, "draft");
   assert.equal(draft.ownerEmail, "ana@example.com");
   assert.equal(draft.unitTitle, "azul");
+  // Bulk-diff fields carried through so a source feed can be reconciled without
+  // a per-listing admin_get_listing.
+  assert.equal(draft.reference, "AbC12345");
+  assert.equal(draft.propertyUrl, "https://example.com/room/areeiro-AbC12345");
+  assert.equal(draft.rentPrice, "575.00");
+  assert.equal(draft.deposit, "575.00");
+  assert.equal(draft.availableFrom, "2027-02-01T00:00:00.000Z");
 });
 
 test("listUserListings requests /admin/listings scoped to the userId with the token", async () => {

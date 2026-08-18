@@ -41,9 +41,12 @@ export function registerAdminTools(
       "statuses — including draft and inactive ones that the public directory " +
       "hides. Use this when an admin asks about another user's full listing " +
       "inventory. Pass the user's id (resolve a name/email to an id with " +
-      "find_users first). Each row: { id, title, status, listingType, " +
-      "ownerName, ownerEmail, portfolioTitle, unitTitle, createdAt }. Returns " +
-      "the matched rows plus the total count.",
+      "find_users first). Each row: { id, title, reference, propertyUrl, " +
+      "status, listingType, rentPrice, deposit, availableFrom, ownerName, " +
+      "ownerEmail, portfolioTitle, unitTitle, createdAt }. reference / " +
+      "propertyUrl / rentPrice / deposit / availableFrom let you dedup or diff " +
+      "against a source feed in bulk without a per-listing admin_get_listing. " +
+      "Returns the matched rows plus the total count.",
     {
       userId: z
         .string()
