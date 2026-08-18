@@ -59,7 +59,7 @@ export function registerAdminTools(
         .max(100)
         .optional()
         .describe("Max listings per page (default 50, max 100)."),
-      page: z
+      page: z.coerce
         .number()
         .int()
         .positive()
