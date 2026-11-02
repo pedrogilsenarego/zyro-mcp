@@ -44,16 +44,21 @@ test("registers exactly the admin tools", () => {
     [...registered().keys()].sort(),
     [
       "admin_associate_listing",
+      "admin_create_bio_link",
       "admin_create_listing",
       "admin_create_property",
       "admin_create_user",
+      "admin_delete_bio_link",
       "admin_delete_listing",
       "admin_delete_property",
       "admin_get_listing",
+      "admin_list_bio_links",
       "admin_list_user_listings",
       "admin_list_user_properties",
+      "admin_reorder_bio_links",
       "admin_set_listing_status",
       "admin_set_user_subscription",
+      "admin_update_bio_link",
       "admin_update_listing",
       "admin_update_listing_images",
       "admin_update_property",
@@ -130,4 +135,46 @@ test("admin_create_listing is a write, requires userId + location, accepts image
   for (const required of ["userId", "title", "rentPrice", "location", "images"]) {
     assert.ok(required in shape, `missing field: ${required}`);
   }
+});
+
+test("bio link tools carry the right hints and params", () => {
+  const tools = registered();
+
+  const list = tools.get("admin_list_bio_links")!;
+  assert.deepEqual(sortedKeys(list.shape), []);
+  assert.equal(list.annotations?.readOnlyHint, true);
+
+  const create = tools.get("admin_create_bio_link")!;
+  assert.deepEqual(sortedKeys(create.shape), [
+    "active",
+    "imageUrl",
+    "pinned",
+    "title",
+    "url",
+  ]);
+  assert.equal(create.annotations?.readOnlyHint, false);
+  // Downloads the image from an external URL.
+  assert.equal(create.annotations?.openWorldHint, true);
+  assert.equal(create.shape.active.parse(undefined), true);
+  assert.equal(create.shape.title.safeParse("x".repeat(81)).success, false);
+
+  const update = tools.get("admin_update_bio_link")!;
+  assert.deepEqual(sortedKeys(update.shape), [
+    "active",
+    "id",
+    "imageUrl",
+    "pinned",
+    "title",
+    "url",
+  ]);
+  assert.equal(update.shape.active.parse(undefined), undefined);
+
+  const del = tools.get("admin_delete_bio_link")!;
+  assert.deepEqual(sortedKeys(del.shape), ["id"]);
+  assert.equal(del.annotations?.destructiveHint, true);
+
+  const reorder = tools.get("admin_reorder_bio_links")!;
+  assert.deepEqual(sortedKeys(reorder.shape), ["ids"]);
+  assert.equal(reorder.annotations?.idempotentHint, true);
+  assert.equal(reorder.annotations?.destructiveHint, false);
 });

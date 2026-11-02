@@ -142,6 +142,17 @@ export async function downloadImages(
   return { files, failed };
 }
 
+export type BioLinkFields = {
+  title?: string;
+  url?: string;
+  pinned?: boolean;
+  active?: boolean;
+};
+
+export type BioLinkImageResult =
+  | { ok: true; imageUrl: string; thumbnailUrl: string | null }
+  | { ok: false; status: number; body: string };
+
 export class AdminApi {
   constructor(private readonly client: BackendClient) {}
 
@@ -516,6 +527,140 @@ export class AdminApi {
         headers: { "Content-Type": "application/json" },
       },
     );
+  }
+
+  // Bio links power casastep.com/bio (the Instagram link-in-bio). All under
+  // /admin/bio-links, admin-gated by the backend; errors relayed verbatim.
+  listBioLinks(accessToken: string): Promise<BackendResult> {
+    return this.client.request("/admin/bio-links", { accessToken });
+  }
+
+  // Downloads a public image server-side and uploads it as the single `image`
+  // field; the backend converts it to webp and returns the stored URLs.
+  async uploadBioLinkImage(
+    sourceUrl: string,
+    accessToken: string,
+    fetchImpl: FetchLike = fetch,
+  ): Promise<BioLinkImageResult> {
+    const { files } = await downloadImages([sourceUrl], fetchImpl);
+    const file = files[0];
+    if (!file) {
+      return {
+        ok: false,
+        status: 0,
+        body: `Could not download an image from ${sourceUrl} (unreachable or not an image).`,
+      };
+    }
+    const form = new FormData();
+    form.append("image", file.blob, file.filename);
+    const res = await this.client.request("/admin/bio-links/image", {
+      method: "POST",
+      accessToken,
+      body: form,
+    });
+    if (!res.ok) return { ok: false, status: res.status, body: res.body };
+    const data = parseData(res.body) as {
+      imageUrl?: string;
+      thumbnailUrl?: string | null;
+    } | null;
+    if (!data?.imageUrl) {
+      return {
+        ok: false,
+        status: res.status,
+        body: `Image upload returned no imageUrl: ${res.body}`,
+      };
+    }
+    return {
+      ok: true,
+      imageUrl: data.imageUrl,
+      thumbnailUrl: data.thumbnailUrl ?? null,
+    };
+  }
+
+  // With an image, it's uploaded first and the entry is only written if that
+  // succeeds, so a bad image never leaves a half-done entry behind.
+  createBioLink(
+    fields: BioLinkFields & { title: string; url: string },
+    imageSourceUrl: string | undefined,
+    accessToken: string,
+    fetchImpl: FetchLike = fetch,
+  ): Promise<BackendResult> {
+    return this.writeBioLink(
+      "/admin/bio-links",
+      "POST",
+      fields,
+      imageSourceUrl,
+      accessToken,
+      fetchImpl,
+    );
+  }
+
+  updateBioLink(
+    id: string,
+    fields: BioLinkFields,
+    imageSourceUrl: string | undefined,
+    accessToken: string,
+    fetchImpl: FetchLike = fetch,
+  ): Promise<BackendResult> {
+    return this.writeBioLink(
+      `/admin/bio-links/${encodeURIComponent(id)}`,
+      "PATCH",
+      fields,
+      imageSourceUrl,
+      accessToken,
+      fetchImpl,
+    );
+  }
+
+  deleteBioLink(id: string, accessToken: string): Promise<BackendResult> {
+    return this.client.request(`/admin/bio-links/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      accessToken,
+    });
+  }
+
+  reorderBioLinks(ids: string[], accessToken: string): Promise<BackendResult> {
+    return this.client.request("/admin/bio-links/order", {
+      method: "PUT",
+      accessToken,
+      body: JSON.stringify({ ids }),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  private async writeBioLink(
+    path: string,
+    method: "POST" | "PATCH",
+    fields: BioLinkFields,
+    imageSourceUrl: string | undefined,
+    accessToken: string,
+    fetchImpl: FetchLike,
+  ): Promise<BackendResult> {
+    const body: Record<string, unknown> = { ...fields };
+    if (imageSourceUrl) {
+      const image = await this.uploadBioLinkImage(
+        imageSourceUrl,
+        accessToken,
+        fetchImpl,
+      );
+      if (!image.ok) return image;
+      body.imageUrl = image.imageUrl;
+      body.thumbnailUrl = image.thumbnailUrl;
+    }
+    return this.client.request(path, {
+      method,
+      accessToken,
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+function parseData(body: string): unknown {
+  try {
+    return (JSON.parse(body) as { data?: unknown })?.data ?? null;
+  } catch {
+    return null;
   }
 }
 

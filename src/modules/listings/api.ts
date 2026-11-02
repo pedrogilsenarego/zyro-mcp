@@ -98,6 +98,9 @@ export type ListingDetail = {
   latitude: string | null;
   longitude: string | null;
   locationNormalizedName: string | null;
+  pictures: string[];
+  smalls: string[];
+  thumbnails: string[];
 };
 
 export type GetListingResult =
@@ -274,6 +277,9 @@ function toDetail(body: string): ListingDetail | null {
     latitude: str(r.latitude),
     longitude: str(r.longitude),
     locationNormalizedName: str(r.locationNormalizedName),
+    pictures: strArray(r.pictures),
+    smalls: strArray(r.smalls),
+    thumbnails: strArray(r.thumbnails),
   };
 }
 

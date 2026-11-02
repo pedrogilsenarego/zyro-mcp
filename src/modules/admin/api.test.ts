@@ -534,3 +534,174 @@ test(
     }
   },
 );
+
+/** Fake client answering each request with the next canned response in order. */
+function scriptedClient(
+  responses: { ok: boolean; status: number; body: string }[],
+) {
+  const calls: { path: string; opts: any }[] = [];
+  const client = {
+    request: async (path: string, opts: any = {}) => {
+      calls.push({ path, opts });
+      return responses[calls.length - 1];
+    },
+  } as unknown as BackendClient;
+  return { client, calls };
+}
+
+const imageFetch = async (): Promise<Response> =>
+  new Response(new Blob([new Uint8Array([1, 2, 3])]), {
+    headers: { "content-type": "image/jpeg" },
+  });
+
+const UPLOADED = JSON.stringify({
+  data: {
+    imageUrl: "https://bucket/bio/a.webp",
+    thumbnailUrl: "https://bucket/bio/a-thumb.webp",
+  },
+});
+
+test("listBioLinks GETs /admin/bio-links with the token", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 200, body: '{"data":[]}' });
+  await new AdminApi(client).listBioLinks("tok");
+  assert.equal(calls[0].path, "/admin/bio-links");
+  assert.equal(calls[0].opts.accessToken, "tok");
+  assert.equal(calls[0].opts.method, undefined);
+});
+
+test("createBioLink without an image is a single JSON POST", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 201, body: '{"data":{"id":"b-1"}}' });
+  let fetched = false;
+  const result = await new AdminApi(client).createBioLink(
+    { title: "Blog", url: "/blog/x", active: true },
+    undefined,
+    "tok",
+    async () => {
+      fetched = true;
+      return new Response();
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(fetched, false);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/admin/bio-links");
+  assert.equal(calls[0].opts.method, "POST");
+  assert.equal(calls[0].opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), {
+    title: "Blog",
+    url: "/blog/x",
+    active: true,
+  });
+});
+
+test("createBioLink with an imageUrl downloads, uploads, then creates with the stored URLs", async () => {
+  const { client, calls } = scriptedClient([
+    { ok: true, status: 200, body: UPLOADED },
+    { ok: true, status: 201, body: '{"data":{"id":"b-2"}}' },
+  ]);
+  const fetchedUrls: string[] = [];
+  const result = await new AdminApi(client).createBioLink(
+    { title: "Post", url: "https://instagram.com/p/1", pinned: true },
+    "https://cdn.instagram.com/post.jpg",
+    "tok",
+    async (url) => {
+      fetchedUrls.push(url);
+      return imageFetch();
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(fetchedUrls, ["https://cdn.instagram.com/post.jpg"]);
+  assert.equal(calls.length, 2);
+
+  assert.equal(calls[0].path, "/admin/bio-links/image");
+  assert.equal(calls[0].opts.method, "POST");
+  const form = calls[0].opts.body as FormData;
+  assert.ok(form.get("image") instanceof Blob);
+  assert.deepEqual([...form.keys()], ["image"]);
+
+  assert.equal(calls[1].path, "/admin/bio-links");
+  assert.equal(calls[1].opts.method, "POST");
+  assert.deepEqual(JSON.parse(calls[1].opts.body), {
+    title: "Post",
+    url: "https://instagram.com/p/1",
+    pinned: true,
+    imageUrl: "https://bucket/bio/a.webp",
+    thumbnailUrl: "https://bucket/bio/a-thumb.webp",
+  });
+});
+
+test("createBioLink creates nothing when the image can't be downloaded", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 201, body: "{}" });
+  const result = await new AdminApi(client).createBioLink(
+    { title: "Post", url: "/blog/x" },
+    "https://host/missing.jpg",
+    "tok",
+    async () => new Response("nope", { status: 404 }),
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.body, /missing\.jpg/);
+  assert.equal(calls.length, 0);
+});
+
+test("updateBioLink with a new image re-uploads then PATCHes /admin/bio-links/:id", async () => {
+  const { client, calls } = scriptedClient([
+    { ok: true, status: 200, body: UPLOADED },
+    { ok: true, status: 200, body: '{"data":{"id":"b-3"}}' },
+  ]);
+  const result = await new AdminApi(client).updateBioLink(
+    "b-3",
+    { active: false },
+    "https://host/new.png",
+    "tok",
+    imageFetch,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls[0].path, "/admin/bio-links/image");
+  assert.equal(calls[1].path, "/admin/bio-links/b-3");
+  assert.equal(calls[1].opts.method, "PATCH");
+  assert.deepEqual(JSON.parse(calls[1].opts.body), {
+    active: false,
+    imageUrl: "https://bucket/bio/a.webp",
+    thumbnailUrl: "https://bucket/bio/a-thumb.webp",
+  });
+});
+
+test("updateBioLink relays a backend error verbatim", async () => {
+  const body = '{"data":null,"metadata":{"errorsList":[{"message":"url: url must start with / or http(s)://"}]}}';
+  const api = new AdminApi(fakeClient({ ok: false, status: 400, body }));
+  const result = await api.updateBioLink("b-1", { url: "blog/x" }, undefined, "tok");
+  assert.deepEqual(result, { ok: false, status: 400, body });
+});
+
+test("a failed image upload is relayed verbatim and skips the write", async () => {
+  const { client, calls } = scriptedClient([
+    { ok: false, status: 403, body: '{"error":"Forbidden"}' },
+  ]);
+  const result = await new AdminApi(client).createBioLink(
+    { title: "Post", url: "/blog/x" },
+    "https://host/a.jpg",
+    "tok",
+    imageFetch,
+  );
+  assert.deepEqual(result, { ok: false, status: 403, body: '{"error":"Forbidden"}' });
+  assert.equal(calls.length, 1);
+});
+
+test("deleteBioLink DELETEs /admin/bio-links/:id", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 200, body: '{"data":null}' });
+  await new AdminApi(client).deleteBioLink("b-9", "tok");
+  assert.equal(calls[0].path, "/admin/bio-links/b-9");
+  assert.equal(calls[0].opts.method, "DELETE");
+});
+
+test("reorderBioLinks PUTs the ids in order to /admin/bio-links/order", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 200, body: '{"data":null}' });
+  await new AdminApi(client).reorderBioLinks(["c", "a", "b"], "tok");
+  assert.equal(calls[0].path, "/admin/bio-links/order");
+  assert.equal(calls[0].opts.method, "PUT");
+  assert.equal(calls[0].opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), { ids: ["c", "a", "b"] });
+});

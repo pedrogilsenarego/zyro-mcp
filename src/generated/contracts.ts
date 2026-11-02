@@ -18,10 +18,20 @@ export type PublishStatus = (typeof PUBLISH_STATUSES)[number];
 export const PAYMENT_TYPE_NAMES = ["electricity","water","internet","gas","leaseRent","credit","house","cleaning","adjustment","management","taxes","condominium","constructionLabors"] as const;
 export type PaymentTypeName = (typeof PAYMENT_TYPE_NAMES)[number];
 export const PAYMENT_TYPE_CODE = {"electricity":"1","water":"2","internet":"3","gas":"4","leaseRent":"5","credit":"6","house":"7","cleaning":"8","adjustment":"9","management":"10","taxes":"11","condominium":"12","constructionLabors":"13"} as const;
+export const ROOM_BILL_PAYMENT_TYPES = ["1","2","3","4"] as const;
+export type RoomBillPaymentType = (typeof ROOM_BILL_PAYMENT_TYPES)[number];
+export const ROOM_BILL_POLICIES = ["included","included_capped","shared"] as const;
+export type RoomBillPolicy = (typeof ROOM_BILL_POLICIES)[number];
 export const EVENT_TYPES = ["lease","labors","tax_imi","condominium","credit","airbnb_reservation","blocked"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export const NOTIFICATION_TYPES = ["connection_request","property_share","property_share_accepted","group_invite","subscription_ending","news","system","al_check_in_submitted","listing_auto_deactivated","listing_match","listing_price_change","conversation_unanswered","charge_due","charge_overdue","charge_auto_paid","charge_auto_pay_failed","listing_suggestions","other"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export type RoomBill = {
+  paymentType: RoomBillPaymentType;
+  policy: RoomBillPolicy;
+  cap?: number | null;
+};
 
 export type CreateListingBase = {
   title: string;
@@ -82,3 +92,189 @@ export type UpdatePropertyInput = {
   municipalityName?: string;
   districtName?: string;
 };
+
+// Roles say who someone is; permissions say what they can do. Every gate —
+// BE middleware, controllers, FE route guards and nav — asks about a
+// permission, never a role, so adding or retiring a role is one edit here.
+export const USER_ROLES = ["user", "manager", "admin"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const PERMISSIONS = [
+  "backoffice",
+  "agency_manage",
+  "teach",
+  "event_admin",
+  "demo_scripts",
+] as const;
+export type Permission = (typeof PERMISSIONS)[number];
+
+// Named constants so call sites never spell a permission by hand.
+export const PERMISSION = {
+  BACKOFFICE: "backoffice",
+  AGENCY_MANAGE: "agency_manage",
+  TEACH: "teach",
+  EVENT_ADMIN: "event_admin",
+  DEMO_SCRIPTS: "demo_scripts",
+} as const satisfies Record<string, Permission>;
+
+const ADMIN_PERMISSIONS: Permission[] = Object.values(PERMISSION);
+
+// Sales/CS sit on `manager`: they present the product but administer nothing.
+const MANAGER_PERMISSIONS: Permission[] = [PERMISSION.DEMO_SCRIPTS];
+
+const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  user: [],
+  manager: MANAGER_PERMISSIONS,
+  admin: ADMIN_PERMISSIONS,
+};
+
+// "imocerto" is the retired internal-staff role. Rows still carrying it behave
+// as admin until the data migration lands; remove this once the UPDATE has run.
+const LEGACY_ROLE_ALIASES: Record<string, UserRole> = { imocerto: "admin" };
+
+export function normalizeRole(role: string | null | undefined): UserRole {
+  if (!role) return "user";
+  const aliased = LEGACY_ROLE_ALIASES[role] ?? role;
+  return (USER_ROLES as readonly string[]).includes(aliased)
+    ? (aliased as UserRole)
+    : "user";
+}
+
+export function getRolePermissions(role: string | null | undefined): Permission[] {
+  return ROLE_PERMISSIONS[normalizeRole(role)];
+}
+
+export function roleHasPermission(
+  role: string | null | undefined,
+  permission: Permission,
+): boolean {
+  return getRolePermissions(role).includes(permission);
+}
+
+// Everything that decides what a user may do lives here: role permissions,
+// subscription features, and the plan limits. Nothing downstream re-implements
+// the rule — the BE resolves it per user and ships the result on the session.
+export const SUBSCRIPTION_FEATURES = [
+  "activity_logs",
+  "properties_collaboration",
+  "search_users",
+  "property_documents",
+  "listing_property_association",
+] as const;
+export type SubscriptionFeature = (typeof SUBSCRIPTION_FEATURES)[number];
+
+export const SUBSCRIPTION_FEATURE = {
+  ACTIVITY_LOGS: "activity_logs",
+  PROPERTIES_COLLABORATION: "properties_collaboration",
+  SEARCH_USERS: "search_users",
+  PROPERTY_DOCUMENTS: "property_documents",
+  LISTING_PROPERTY_ASSOCIATION: "listing_property_association",
+} as const satisfies Record<string, SubscriptionFeature>;
+
+export const PLAN_CODES = ["silver", "gold", "plat", "dev"] as const;
+export type PlanCode = (typeof PLAN_CODES)[number];
+
+export const UNLIMITED = 1_000_000;
+
+export const BASE_LIMITS = {
+  listing: 5,
+  property: 1,
+  storage: 0,
+} as const;
+
+export const PLAN_LIMITS: Record<
+  string,
+  { listing?: number; property?: number; storage?: number }
+> = {
+  silver: { listing: 20, property: 5, storage: 100 * 1024 * 1024 },
+  gold: { listing: 50, property: 20, storage: 500 * 1024 * 1024 },
+  plat: { listing: 200, property: 100, storage: 1024 * 1024 * 1024 },
+  dev: {
+    listing: UNLIMITED,
+    property: UNLIMITED,
+    storage: 10 * 1024 * 1024 * 1024,
+  },
+};
+
+export const PLAN_FEATURES: Record<string, SubscriptionFeature[]> = {
+  silver: [
+    SUBSCRIPTION_FEATURE.LISTING_PROPERTY_ASSOCIATION,
+    SUBSCRIPTION_FEATURE.PROPERTY_DOCUMENTS,
+  ],
+  gold: [
+    SUBSCRIPTION_FEATURE.ACTIVITY_LOGS,
+    SUBSCRIPTION_FEATURE.PROPERTIES_COLLABORATION,
+    SUBSCRIPTION_FEATURE.SEARCH_USERS,
+    SUBSCRIPTION_FEATURE.LISTING_PROPERTY_ASSOCIATION,
+    SUBSCRIPTION_FEATURE.PROPERTY_DOCUMENTS,
+  ],
+  plat: [...SUBSCRIPTION_FEATURES],
+  dev: [...SUBSCRIPTION_FEATURES],
+};
+
+// Staff don't buy a plan. An admin gets every feature and no ceiling, so
+// support can act without someone first attaching a subscription row.
+const ROLE_GRANTS_EVERYTHING: UserRole[] = ["admin"];
+
+export type Grant = Permission | SubscriptionFeature;
+
+export type Entitlements = {
+  /** Role grants only. */
+  permissions: Permission[];
+  /** Subscription grants only (role-boosted for staff). */
+  features: SubscriptionFeature[];
+  /** Everything the user may do — what the session ships. */
+  grants: Grant[];
+  listingLimit: number;
+  propertyLimit: number;
+  storageLimit: number;
+};
+
+/**
+ * The one place role-based and plan-based access are combined. Pure: callers
+ * supply the user's role, their active plan codes and any manual listing
+ * override, and get the effective entitlements back.
+ */
+export function resolveEntitlements(input: {
+  role?: string | null;
+  activePlans?: string[];
+  manualListingLimit?: number;
+}): Entitlements {
+  const role = normalizeRole(input.role);
+  const plans = input.activePlans ?? [];
+  const staff = ROLE_GRANTS_EVERYTHING.includes(role);
+
+  const features = new Set<SubscriptionFeature>(
+    staff ? SUBSCRIPTION_FEATURES : [],
+  );
+  let listingLimit = staff ? UNLIMITED : BASE_LIMITS.listing;
+  let propertyLimit = staff ? UNLIMITED : BASE_LIMITS.property;
+  let storageLimit = staff ? PLAN_LIMITS.dev.storage! : BASE_LIMITS.storage;
+
+  for (const plan of plans) {
+    const limits = PLAN_LIMITS[plan];
+    if (limits?.listing && limits.listing > listingLimit)
+      listingLimit = limits.listing;
+    if (limits?.property && limits.property > propertyLimit)
+      propertyLimit = limits.property;
+    if (limits?.storage && limits.storage > storageLimit)
+      storageLimit = limits.storage;
+    for (const feature of PLAN_FEATURES[plan] ?? []) features.add(feature);
+  }
+
+  if (input.manualListingLimit && input.manualListingLimit > listingLimit) {
+    listingLimit = input.manualListingLimit;
+  }
+
+  const permissions = getRolePermissions(role);
+  const featureList = Array.from(features);
+
+  return {
+    permissions,
+    features: featureList,
+    grants: [...permissions, ...featureList],
+    listingLimit,
+    propertyLimit,
+    storageLimit,
+  };
+}

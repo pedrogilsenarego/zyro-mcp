@@ -1173,4 +1173,187 @@ export function registerAdminTools(
       },
     ),
   );
+
+  server.tool(
+    "admin_list_bio_links",
+    "ADMIN ONLY. List every entry on casastep.com/bio (the Instagram " +
+      "link-in-bio page), active and inactive, in display order (pinned first, " +
+      "then position). Each row: { id, title, url, imageUrl, thumbnailUrl, " +
+      "pinned, active, position, createdBy, createdAt, updatedAt }. Use it to " +
+      "find an entry's id before updating, deleting or reordering.",
+    {},
+    {
+      title: "Admin: list bio links",
+      readOnlyHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(deps, async (_args: Record<string, never>, { token }) => {
+      const result = await api.listBioLinks(token);
+      return result.ok
+        ? text(result.body)
+        : errorText(
+            `Could not list bio links (status ${result.status}): ${result.body}`,
+          );
+    }),
+  );
+
+  server.tool(
+    "admin_create_bio_link",
+    "ADMIN ONLY. Add an entry to casastep.com/bio (the Instagram link-in-bio " +
+      "page). New entries go to the top of the list. `url` is either an app " +
+      "path starting with '/' WITHOUT a locale (e.g. '/blog/some-slug' — the " +
+      "website adds the locale) or a full https:// link to another site. The " +
+      "website appends Instagram UTM tags automatically, so never add utm_* " +
+      "parameters yourself. `imageUrl` is an optional PUBLIC image URL (e.g. " +
+      "the Instagram post's image): it's downloaded here and re-hosted by the " +
+      "backend as webp; if that fails, nothing is created. Relay any backend " +
+      "error verbatim.",
+    {
+      title: z.string().min(1).max(80).describe(BIO_LINK_FIELDS.title),
+      url: z.string().min(1).describe(BIO_LINK_FIELDS.url),
+      imageUrl: z.string().url().optional().describe(BIO_LINK_FIELDS.imageUrl),
+      pinned: z.boolean().optional().describe(BIO_LINK_FIELDS.pinned),
+      active: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe(`${BIO_LINK_FIELDS.active} Default true.`),
+    },
+    {
+      title: "Admin: create a bio link",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      // Downloads the image from an external URL.
+      openWorldHint: true,
+    },
+    authedHandler(
+      deps,
+      async (
+        { imageUrl, ...fields }: BioLinkArgs & { title: string; url: string },
+        { token },
+      ) => {
+        const result = await api.createBioLink(fields, imageUrl, token);
+        return result.ok
+          ? text(`Bio link '${fields.title}' created.\n${result.body}`)
+          : errorText(
+              `Bio link creation failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
+    "admin_update_bio_link",
+    "ADMIN ONLY. Edit an entry on casastep.com/bio by id (from " +
+      "admin_list_bio_links). Pass only the fields to change. `url` follows the " +
+      "same rules as admin_create_bio_link (app path starting with '/' without " +
+      "a locale, or a full https:// link; no utm_* parameters — the website adds " +
+      "them). A new `imageUrl` (PUBLIC image URL) is downloaded and re-hosted, " +
+      "replacing the current image. Set `active: false` to hide an entry " +
+      "without deleting it. Relay any backend error verbatim.",
+    {
+      id: z.string().min(1).describe("The bio link's id (UUID)."),
+      title: z.string().min(1).max(80).optional().describe(BIO_LINK_FIELDS.title),
+      url: z.string().min(1).optional().describe(BIO_LINK_FIELDS.url),
+      imageUrl: z.string().url().optional().describe(BIO_LINK_FIELDS.imageUrl),
+      pinned: z.boolean().optional().describe(BIO_LINK_FIELDS.pinned),
+      active: z.boolean().optional().describe(BIO_LINK_FIELDS.active),
+    },
+    {
+      title: "Admin: update a bio link",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    authedHandler(
+      deps,
+      async ({ id, imageUrl, ...fields }: BioLinkArgs & { id: string }, { token }) => {
+        if (!imageUrl && Object.values(fields).every((v) => v === undefined)) {
+          return errorText("Nothing to update — pass at least one field.");
+        }
+        const result = await api.updateBioLink(id, fields, imageUrl, token);
+        return result.ok
+          ? text(`Bio link ${id} updated.\n${result.body}`)
+          : errorText(
+              `Bio link update failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
+
+  server.tool(
+    "admin_delete_bio_link",
+    "ADMIN ONLY. Permanently remove an entry from casastep.com/bio by id (from " +
+      "admin_list_bio_links). Destructive — to just hide it, prefer " +
+      "admin_update_bio_link with active: false. Relay any backend error verbatim.",
+    {
+      id: z.string().min(1).describe("The bio link's id (UUID)."),
+    },
+    {
+      title: "Admin: delete a bio link",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(deps, async ({ id }: { id: string }, { token }) => {
+      const result = await api.deleteBioLink(id, token);
+      return result.ok
+        ? text(`Bio link ${id} deleted.`)
+        : errorText(
+            `Bio link deletion failed (status ${result.status}): ${result.body}`,
+          );
+    }),
+  );
+
+  server.tool(
+    "admin_reorder_bio_links",
+    "ADMIN ONLY. Set the display order of casastep.com/bio. Pass `ids` as the " +
+      "FULL desired order (every entry id from admin_list_bio_links, first = " +
+      "top); positions follow that order. Pinned entries still show above " +
+      "unpinned ones regardless. Relay any backend error verbatim.",
+    {
+      ids: z
+        .array(z.string().min(1))
+        .min(1)
+        .describe("All bio link ids (UUIDs) in the desired order, top first."),
+    },
+    {
+      title: "Admin: reorder bio links",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(deps, async ({ ids }: { ids: string[] }, { token }) => {
+      const result = await api.reorderBioLinks(ids, token);
+      return result.ok
+        ? text(`Bio links reordered (${ids.length} entries).`)
+        : errorText(
+            `Bio link reorder failed (status ${result.status}): ${result.body}`,
+          );
+    }),
+  );
 }
+
+type BioLinkArgs = {
+  title?: string;
+  url?: string;
+  imageUrl?: string;
+  pinned?: boolean;
+  active?: boolean;
+};
+
+const BIO_LINK_FIELDS = {
+  title: "Label shown on the page (1–80 chars).",
+  url:
+    "App path starting with '/' and no locale (e.g. '/blog/some-slug'), or a " +
+    "full https:// link. No utm_* parameters — the website adds them.",
+  imageUrl:
+    "PUBLIC image URL (e.g. the Instagram post image); downloaded and " +
+    "re-hosted as webp.",
+  pinned: "Pin to the top of the page.",
+  active: "Whether the entry is shown on the page.",
+};
