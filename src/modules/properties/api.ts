@@ -173,6 +173,11 @@ export type ElectricityInput = {
   tariffOption?: ElectricityTariffOption | null;
   indexed?: boolean;
   socialTariff?: boolean;
+  energyPrice1?: number | null;
+  energyPrice2?: number | null;
+  energyPrice3?: number | null;
+  powerPricePerDay?: number | null;
+  annualKwh?: number | null;
 };
 
 function toSummaries(body: string): PropertySummary[] {

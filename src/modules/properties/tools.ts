@@ -251,7 +251,9 @@ export function registerPropertyTools(
     "update_property_electricity",
     "Set the electricity contract of one of the user's properties (the " +
       "Electricity card in the property settings): supplier, CPE, contracted " +
-      "power, tariff option, indexed and social tariff. This REPLACES the " +
+      "power, tariff option, indexed, social tariff, and what the house pays " +
+      "today (energy price per period, power price per day, yearly kWh) so " +
+      "offers are compared against the real price. This REPLACES the " +
       "whole contract — any field you omit is cleared — so pass everything " +
       "you know, e.g. read it off the supplier's invoice. The id comes from " +
       "list_properties — never guess it.",
@@ -293,6 +295,42 @@ export function registerPropertyTools(
         .boolean()
         .optional()
         .describe("True if the contract has the social tariff (Tarifa Social)."),
+      energyPrice1: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Energy price in €/kWh WITHOUT VAT, off the invoice (after any campaign " +
+            "discount). Simple tariff: the one price; bi: fora de vazio; tri: ponta."),
+      energyPrice2: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("€/kWh without VAT: bi = vazio; tri = cheias. Omit on simple."),
+      energyPrice3: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("€/kWh without VAT: tri = vazio. Omit on simple/bi."),
+      powerPricePerDay: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Power term in €/day WITHOUT VAT: contracted power plus grid access " +
+            "(on Goldenergy invoices, add the two 'Potência' lines)."),
+      annualKwh: z
+        .number()
+        .int()
+        .positive()
+        .nullable()
+        .optional()
+        .describe(
+          "Yearly usage in kWh. If the invoice gives the daily average, " +
+            "multiply by 365.",
+        ),
     },
     {
       title: "Update property electricity",
