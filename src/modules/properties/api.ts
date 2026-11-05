@@ -1,4 +1,5 @@
 import type { BackendClient, BackendResult } from "../../backend/client.js";
+import type { ElectricityTariffOption } from "../../generated/contracts.js";
 import type { UpdatePropertyInput } from "../../generated/contracts.js";
 
 export type { UpdatePropertyInput };
@@ -146,7 +147,33 @@ export class PropertiesApi {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  /** Replaces the property's whole electricity contract; omitted fields clear. */
+  updateElectricity(
+    propertyId: string,
+    input: ElectricityInput,
+    accessToken: string,
+  ): Promise<BackendResult> {
+    return this.client.request(
+      `/property/${encodeURIComponent(propertyId)}/electricity`,
+      {
+        method: "PUT",
+        accessToken,
+        body: JSON.stringify(input),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
 }
+
+export type ElectricityInput = {
+  provider?: string | null;
+  cpe?: string | null;
+  contractedPowerKva?: number | null;
+  tariffOption?: ElectricityTariffOption | null;
+  indexed?: boolean;
+  socialTariff?: boolean;
+};
 
 function toSummaries(body: string): PropertySummary[] {
   let parsed: unknown;

@@ -6,9 +6,13 @@ import {
   PropertiesApi,
   type CreatePropertyInput,
   type UpdatePropertyInput,
+  type ElectricityInput,
 } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
-import { HOUSE_FEATURE_KEYS } from "../../generated/contracts.js";
+import {
+  ELECTRICITY_TARIFF_OPTIONS,
+  HOUSE_FEATURE_KEYS,
+} from "../../generated/contracts.js";
 
 // Shared Zod shape for the create tools (user + admin), minus the owner id the
 // admin variant adds. Kept here so both tools describe the fields identically.
@@ -242,7 +246,77 @@ export function registerPropertyTools(
       },
     ),
   );
+
+  server.tool(
+    "update_property_electricity",
+    "Set the electricity contract of one of the user's properties (the " +
+      "Electricity card in the property settings): supplier, CPE, contracted " +
+      "power, tariff option, indexed and social tariff. This REPLACES the " +
+      "whole contract — any field you omit is cleared — so pass everything " +
+      "you know, e.g. read it off the supplier's invoice. The id comes from " +
+      "list_properties — never guess it.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+      provider: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+          "ERSE supplier code, e.g. 'EDPC' (EDP Comercial), 'GOLD' " +
+            "(Goldenergy), 'IBD' (Iberdrola), 'END' (Endesa), 'GALP', " +
+            "'REPSOL', 'MEOENERGIA', 'ENIPLENITUDE', 'TUR' (regulated); or 'other'. " +
+            "The backend rejects unknown codes — relay its error.",
+        ),
+      cpe: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("CPE code from the invoice, e.g. 'PT0002000037225289ZE'."),
+      contractedPowerKva: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Contracted power in kVA, e.g. 6.9."),
+      tariffOption: z
+        .enum(ELECTRICITY_TARIFF_OPTIONS)
+        .nullable()
+        .optional()
+        .describe(
+          "simple = 'Simples', bi = 'Bi-horário', tri = 'Tri-horário'.",
+        ),
+      indexed: z
+        .boolean()
+        .optional()
+        .describe("True for an indexed (dynamic price) tariff."),
+      socialTariff: z
+        .boolean()
+        .optional()
+        .describe("True if the contract has the social tariff (Tarifa Social)."),
+    },
+    {
+      title: "Update property electricity",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ propertyId, ...input }: UpdateElectricityArgs, { token }) => {
+        const result = await api.updateElectricity(propertyId, input, token);
+        return result.ok
+          ? text(`Electricity for property ${propertyId} updated.
+${result.body}`)
+          : errorText(
+              `Electricity update failed (status ${result.status}): ${result.body}`,
+            );
+      },
+    ),
+  );
 }
+
+type UpdateElectricityArgs = ElectricityInput & { propertyId: string };
 
 type UpdatePropertyArgs = {
   propertyId: string;

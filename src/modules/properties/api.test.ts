@@ -323,3 +323,42 @@ test(
     }
   },
 );
+
+test("updateElectricity PUTs the whole contract as JSON to /property/:id/electricity", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 200, body: "{}" });
+  const api = new PropertiesApi(client);
+
+  const result = await api.updateElectricity(
+    "prop-1",
+    {
+      provider: "GOLD",
+      cpe: "PT0002000037225289ZE",
+      contractedPowerKva: 6.9,
+      tariffOption: "simple",
+      indexed: false,
+      socialTariff: false,
+    },
+    "tok",
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(calls[0].path, "/property/prop-1/electricity");
+  assert.equal(calls[0].opts.method, "PUT");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), {
+    provider: "GOLD",
+    cpe: "PT0002000037225289ZE",
+    contractedPowerKva: 6.9,
+    tariffOption: "simple",
+    indexed: false,
+    socialTariff: false,
+  });
+});
+
+test("updateElectricity relays a backend error instead of throwing", async () => {
+  const api = new PropertiesApi(
+    fakeClient({ ok: false, status: 400, body: '{"error":"Invalid provider"}' }),
+  );
+  const result = await api.updateElectricity("prop-1", { provider: "NOPE" }, "tok");
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 400);
+});
