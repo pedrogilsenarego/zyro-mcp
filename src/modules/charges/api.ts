@@ -56,3 +56,38 @@ export class ChargesApi {
     return { ok: true, status: res.status, rows: toRows(res.body, filters.propertyId) };
   }
 }
+
+export type RecurringChargeUpdate = {
+  label?: string | null;
+  amount?: number | null;
+  dueDay?: number;
+  autoPay?: boolean;
+  active?: boolean;
+};
+
+export type ChargesWriteResult =
+  | { ok: true; status: number; body: string }
+  | { ok: false; status: number; body: string };
+
+export class ChargesWriteApi {
+  constructor(private readonly client: BackendClient) {}
+
+  async updateRecurringCharge(
+    id: string,
+    updates: RecurringChargeUpdate,
+    accessToken: string,
+  ): Promise<ChargesWriteResult> {
+    const res = await this.client.request(`/charges/recurring/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      accessToken,
+      body: JSON.stringify(updates),
+      headers: { "Content-Type": "application/json" },
+    });
+    return { ok: res.ok, status: res.status, body: res.body };
+  }
+
+  async generateCharges(accessToken: string): Promise<ChargesWriteResult> {
+    const res = await this.client.request("/charges/generate", { method: "POST", accessToken });
+    return { ok: res.ok, status: res.status, body: res.body };
+  }
+}
