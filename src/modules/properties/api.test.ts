@@ -362,3 +362,22 @@ test("updateElectricity relays a backend error instead of throwing", async () =>
   assert.equal(result.ok, false);
   assert.equal(result.status, 400);
 });
+
+test("updateGas PUTs the whole gas contract as JSON to /property/:id/gas", async () => {
+  const { client, calls } = capturingClient({ ok: true, status: 200, body: "{}" });
+  const api = new PropertiesApi(client);
+  await api.updateGas(
+    "prop-1",
+    { provider: "GOLD", tier: 2, energyPrice: 0.1404, fixedPricePerDay: 0.0515, sameBillAsElectricity: true },
+    "tok",
+  );
+  assert.equal(calls[0].path, "/property/prop-1/gas");
+  assert.equal(calls[0].opts.method, "PUT");
+  assert.deepEqual(JSON.parse(calls[0].opts.body), {
+    provider: "GOLD",
+    tier: 2,
+    energyPrice: 0.1404,
+    fixedPricePerDay: 0.0515,
+    sameBillAsElectricity: true,
+  });
+});

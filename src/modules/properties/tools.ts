@@ -7,10 +7,12 @@ import {
   type CreatePropertyInput,
   type UpdatePropertyInput,
   type ElectricityInput,
+  type GasInput,
 } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
 import {
   ELECTRICITY_TARIFF_OPTIONS,
+  GAS_TIERS,
   HOUSE_FEATURE_KEYS,
 } from "../../generated/contracts.js";
 
@@ -352,9 +354,85 @@ ${result.body}`)
       },
     ),
   );
+
+  server.tool(
+    "update_property_gas",
+    "Set the natural gas contract of one of the user's properties (the Gas " +
+      "card in the property settings): supplier, CUI, escalão (tier), what the " +
+      "house pays today and yearly usage, and whether gas comes on the same " +
+      "dual invoice as electricity. This REPLACES the whole gas contract — any " +
+      "field you omit is cleared. The id comes from list_properties.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+      provider: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("ERSE supplier code, e.g. 'GOLD', 'EDPC', 'GALP', 'IBD'; or 'other'."),
+      cui: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("CUI code from the gas invoice, e.g. 'PT1605000008068516VM'."),
+      tier: z
+        .number()
+        .int()
+        .min(GAS_TIERS[0])
+        .max(GAS_TIERS[GAS_TIERS.length - 1])
+        .nullable()
+        .optional()
+        .describe(
+          "Escalão from the invoice, by m3 a year: 1 up to 220, 2 221-500, " +
+            "3 501-1000, 4 1001-10000.",
+        ),
+      energyPrice: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Gas price in €/kWh WITHOUT VAT, after any campaign discount."),
+      fixedPricePerDay: z
+        .number()
+        .positive()
+        .nullable()
+        .optional()
+        .describe(
+          "Fixed term in €/day WITHOUT VAT: termo fixo plus 'acesso às redes' per day.",
+        ),
+      annualKwh: z
+        .number()
+        .int()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Yearly gas usage in kWh (the invoice converts m3 to kWh)."),
+      sameBillAsElectricity: z
+        .boolean()
+        .optional()
+        .describe("True when electricity and gas come on one dual invoice paid as one value."),
+    },
+    {
+      title: "Update property gas",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ propertyId, ...input }: UpdateGasArgs, { token }) => {
+        const result = await api.updateGas(propertyId, input, token);
+        return result.ok
+          ? text(`Gas for property ${propertyId} updated.
+${result.body}`)
+          : errorText(`Gas update failed (status ${result.status}): ${result.body}`);
+      },
+    ),
+  );
 }
 
 type UpdateElectricityArgs = ElectricityInput & { propertyId: string };
+type UpdateGasArgs = GasInput & { propertyId: string };
 
 type UpdatePropertyArgs = {
   propertyId: string;

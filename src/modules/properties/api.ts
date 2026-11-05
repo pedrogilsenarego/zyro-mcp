@@ -148,6 +148,16 @@ export class PropertiesApi {
     });
   }
 
+  /** Replaces the property's whole gas contract; omitted fields clear. */
+  updateGas(propertyId: string, input: GasInput, accessToken: string): Promise<BackendResult> {
+    return this.client.request(`/property/${encodeURIComponent(propertyId)}/gas`, {
+      method: "PUT",
+      accessToken,
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   /** Replaces the property's whole electricity contract; omitted fields clear. */
   updateElectricity(
     propertyId: string,
@@ -165,6 +175,16 @@ export class PropertiesApi {
     );
   }
 }
+
+export type GasInput = {
+  provider?: string | null;
+  cui?: string | null;
+  tier?: number | null;
+  energyPrice?: number | null;
+  fixedPricePerDay?: number | null;
+  annualKwh?: number | null;
+  sameBillAsElectricity?: boolean;
+};
 
 export type ElectricityInput = {
   provider?: string | null;

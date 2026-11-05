@@ -9,7 +9,8 @@ const paymentTypeField = z
   .enum(PAYMENT_TYPE_NAMES)
   .describe(
     "Payment type. Rent received from a tenant is 'leaseRent'. Utilities are " +
-      "electricity/water/internet/gas; others: house, cleaning, credit, taxes, " +
+      "electricity/water/internet/gas, and electricityGas for one dual " +
+      "electricity + gas bill paid as a single value; others: house, cleaning, credit, taxes, " +
       "condominium, management, adjustment, constructionLabors.",
   );
 
