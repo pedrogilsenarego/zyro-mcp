@@ -11,6 +11,8 @@ import { PropertiesApi } from "./modules/properties/api.js";
 import { registerPropertyTools } from "./modules/properties/tools.js";
 import { PaymentsApi } from "./modules/payments/api.js";
 import { registerPaymentTools } from "./modules/payments/tools.js";
+import { ChargesApi } from "./modules/charges/api.js";
+import { registerChargeTools } from "./modules/charges/tools.js";
 import { EventsApi } from "./modules/events/api.js";
 import { registerEventTools } from "./modules/events/tools.js";
 import { UsersApi } from "./modules/users/api.js";
@@ -58,6 +60,7 @@ export async function createMcpServer(
   registerNotificationTools(server, new NotificationsApi(client), deps);
   registerPropertyTools(server, new PropertiesApi(client), listingsApi, deps);
   registerPaymentTools(server, new PaymentsApi(client), deps);
+  registerChargeTools(server, new ChargesApi(client), deps);
   registerEventTools(server, new EventsApi(client), deps);
   registerUserTools(server, new UsersApi(client), deps);
   registerSearchTools(server, new SearchApi(client), deps);
