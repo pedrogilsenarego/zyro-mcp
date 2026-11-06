@@ -77,6 +77,7 @@ export type RecordPaymentInput = {
   paidByUserId?: string;
   transactionAt?: string;
   note?: string;
+  isPartial?: boolean;
 };
 
 export class PaymentsApi {
@@ -118,6 +119,7 @@ export class PaymentsApi {
       paidByUserId: input.paidByUserId,
       transactionAt: input.transactionAt,
       note: input.note,
+      isPartial: input.isPartial,
     };
     return this.client.request("/payments/add", {
       method: "POST",

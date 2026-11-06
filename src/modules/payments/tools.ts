@@ -134,6 +134,14 @@ export function registerPaymentTools(
         .optional()
         .describe("ISO date of the payment. Defaults to now if omitted."),
       note: z.string().optional(),
+      isPartial: z
+        .boolean()
+        .optional()
+        .describe(
+          "leaseRent only: true when the tenant still owes the rest of this " +
+            "month's rent, which keeps the rent open as partial. Leave it unset " +
+            "for a prorated month or a discount: a smaller amount alone is not partial.",
+        ),
     },
     {
       title: "Record payment",

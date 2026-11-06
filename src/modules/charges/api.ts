@@ -8,7 +8,7 @@ const NAME_BY_CODE: Record<string, PaymentTypeName> = Object.fromEntries(
   Object.entries(PAYMENT_TYPE_CODE).map(([name, code]) => [code, name as PaymentTypeName]),
 );
 
-export type ChargeStatus = "pending" | "paid" | "skipped" | "failed" | "void";
+export type ChargeStatus = "pending" | "partial" | "paid" | "skipped" | "failed" | "void";
 
 export type ListChargesResult =
   | { ok: true; status: number; rows: Record<string, unknown>[] }

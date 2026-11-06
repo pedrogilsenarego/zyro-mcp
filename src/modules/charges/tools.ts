@@ -40,9 +40,9 @@ export function registerChargeTools(
       "recurringChargeId (the schedule that produced it).",
     {
       status: z
-        .enum(["pending", "paid", "skipped", "failed", "void"])
+        .enum(["pending", "partial", "paid", "skipped", "failed", "void"])
         .optional()
-        .describe("Filter by status; 'pending' is what Actions shows."),
+        .describe("Filter by status; 'pending' and 'partial' (a rent paid in part, see amountPaid) are what Actions shows."),
       propertyId: propertyIdField,
     },
     { title: "List charges", readOnlyHint: true, openWorldHint: false },

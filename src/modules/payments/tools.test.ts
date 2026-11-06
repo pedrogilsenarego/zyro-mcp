@@ -70,6 +70,7 @@ test("list_payments is read-only and exposes the expected filters", () => {
 test("record_payment is destructive and takes the write fields", () => {
   const { shape, annotations } = registered().get("record_payment")!;
   assert.deepEqual(sortedKeys(shape), [
+    "isPartial",
     "note",
     "paidByUserId",
     "paymentType",
