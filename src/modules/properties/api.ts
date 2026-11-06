@@ -183,6 +183,7 @@ export type GasInput = {
   energyPrice?: number | null;
   fixedPricePerDay?: number | null;
   annualKwh?: number | null;
+  contractStart?: string | null;
   sameBillAsElectricity?: boolean;
 };
 
@@ -198,6 +199,7 @@ export type ElectricityInput = {
   energyPrice3?: number | null;
   powerPricePerDay?: number | null;
   annualKwh?: number | null;
+  contractStart?: string | null;
 };
 
 function toSummaries(body: string): PropertySummary[] {

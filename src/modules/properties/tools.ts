@@ -302,8 +302,9 @@ export function registerPropertyTools(
         .positive()
         .nullable()
         .optional()
-        .describe("Energy price in €/kWh WITHOUT VAT, off the invoice (after any campaign " +
-            "discount). Simple tariff: the one price; bi: fora de vazio; tri: ponta."),
+        .describe("Energy price in €/kWh WITHOUT VAT, after every discount. When the invoice " +
+            "lists the discount apart (EDP: '10% (-3,34 €)'), divide the line total after " +
+            "discount by its kWh. Simple tariff: the one price; bi: fora de vazio; tri: ponta."),
       energyPrice2: z
         .number()
         .positive()
@@ -332,6 +333,15 @@ export function registerPropertyTools(
         .describe(
           "Yearly usage in kWh. If the invoice gives the daily average, " +
             "multiply by 365.",
+        ),
+      contractStart: z
+        .string()
+        .regex(/^d{4}-d{2}-d{2}$/)
+        .nullable()
+        .optional()
+        .describe(
+          "Date the contract started, YYYY-MM-DD ('data de início' or 'data de adesão'). " +
+            "Campaign discounts usually last 12 months from it.",
         ),
     },
     {
@@ -390,7 +400,8 @@ ${result.body}`)
         .positive()
         .nullable()
         .optional()
-        .describe("Gas price in €/kWh WITHOUT VAT, after any campaign discount."),
+        .describe("Gas price in €/kWh WITHOUT VAT, after every discount: when the invoice " +
+            "lists it apart, divide the line total after discount by its kWh."),
       fixedPricePerDay: z
         .number()
         .positive()
@@ -406,6 +417,15 @@ ${result.body}`)
         .nullable()
         .optional()
         .describe("Yearly gas usage in kWh (the invoice converts m3 to kWh)."),
+      contractStart: z
+        .string()
+        .regex(/^d{4}-d{2}-d{2}$/)
+        .nullable()
+        .optional()
+        .describe(
+          "Date the contract started, YYYY-MM-DD ('data de início' or 'data de adesão'). " +
+            "Campaign discounts usually last 12 months from it.",
+        ),
       sameBillAsElectricity: z
         .boolean()
         .optional()
