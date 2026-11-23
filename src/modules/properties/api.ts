@@ -1,5 +1,5 @@
-import type { BackendClient, BackendResult } from "../../backend/client.js";
-import type { ElectricityTariffOption } from "../../generated/contracts.js";
+﻿import type { BackendClient, BackendResult } from "../../backend/client.js";
+import type { ElectricityTariffOption, WaterContractHolder } from "../../generated/contracts.js";
 import type { UpdatePropertyInput } from "../../generated/contracts.js";
 
 export type { UpdatePropertyInput };
@@ -158,6 +158,16 @@ export class PropertiesApi {
     });
   }
 
+  /** Replaces the property's whole water contract; omitted fields clear. */
+  updateWater(propertyId: string, input: WaterInput, accessToken: string): Promise<BackendResult> {
+    return this.client.request(`/property/${encodeURIComponent(propertyId)}/water`, {
+      method: "PUT",
+      accessToken,
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   /** Replaces the property's whole electricity contract; omitted fields clear. */
   updateElectricity(
     propertyId: string,
@@ -185,6 +195,18 @@ export type GasInput = {
   annualKwh?: number | null;
   contractStart?: string | null;
   sameBillAsElectricity?: boolean;
+};
+
+export type WaterInput = {
+  provider?: string | null;
+  customerNumber?: string | null;
+  meterCaliberMm?: number | null;
+  householdSize?: number | null;
+  socialTariff?: boolean;
+  largeFamilyTariff?: boolean;
+  holder?: WaterContractHolder | null;
+  annualM3?: number | null;
+  contractStart?: string | null;
 };
 
 export type ElectricityInput = {

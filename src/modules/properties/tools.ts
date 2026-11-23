@@ -8,12 +8,14 @@ import {
   type UpdatePropertyInput,
   type ElectricityInput,
   type GasInput,
+  type WaterInput,
 } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
 import {
   ELECTRICITY_TARIFF_OPTIONS,
   GAS_TIERS,
   HOUSE_FEATURE_KEYS,
+  WATER_CONTRACT_HOLDERS,
 } from "../../generated/contracts.js";
 
 // Shared Zod shape for the create tools (user + admin), minus the owner id the
@@ -336,7 +338,7 @@ export function registerPropertyTools(
         ),
       contractStart: z
         .string()
-        .regex(/^d{4}-d{2}-d{2}$/)
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
         .nullable()
         .optional()
         .describe(
@@ -419,7 +421,7 @@ ${result.body}`)
         .describe("Yearly gas usage in kWh (the invoice converts m3 to kWh)."),
       contractStart: z
         .string()
-        .regex(/^d{4}-d{2}-d{2}$/)
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
         .nullable()
         .optional()
         .describe(
@@ -449,10 +451,91 @@ ${result.body}`)
       },
     ),
   );
+
+  server.tool(
+    "update_property_water",
+    "Set the water contract of one of the user's properties (the Água card in " +
+      "the property settings): the entidade gestora, customer number, meter " +
+      "caliber, household size, social or family tariff, who holds the contract " +
+      "and yearly usage. Water has no offers to switch to (each concelho has one " +
+      "operator); the card compares the house with its concelho instead. This " +
+      "REPLACES the whole water contract — any field you omit is cleared. The id " +
+      "comes from list_properties.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+      provider: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("Entidade gestora as on the invoice, e.g. 'EPAL', 'Águas do Porto', 'SMAS de Sintra'."),
+      customerNumber: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("Customer or consumption-point number from the invoice (nº de cliente / CIL)."),
+      meterCaliberMm: z
+        .number()
+        .int()
+        .positive()
+        .max(300)
+        .nullable()
+        .optional()
+        .describe("Meter caliber in mm, from the invoice's fixed fee line (houses are usually 15 or 20)."),
+      householdSize: z
+        .number()
+        .int()
+        .positive()
+        .max(30)
+        .nullable()
+        .optional()
+        .describe("People living in the house; from five the family tariff applies."),
+      socialTariff: z.boolean().optional().describe("True when the invoice shows the tarifa social."),
+      largeFamilyTariff: z
+        .boolean()
+        .optional()
+        .describe("True when the invoice shows the tarifa familiar / famílias numerosas."),
+      holder: z
+        .enum(WATER_CONTRACT_HOLDERS)
+        .nullable()
+        .optional()
+        .describe("Who holds the contract: 'owner', or 'tenant' when the tenant signed their own."),
+      annualM3: z
+        .number()
+        .int()
+        .positive()
+        .nullable()
+        .optional()
+        .describe("Yearly water usage in m3 (about 10 m3 a month for three people)."),
+      contractStart: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional()
+        .describe("Date the contract started, YYYY-MM-DD."),
+    },
+    {
+      title: "Update property water",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ propertyId, ...input }: UpdateWaterArgs, { token }) => {
+        const result = await api.updateWater(propertyId, input, token);
+        return result.ok
+          ? text(`Water for property ${propertyId} updated.
+${result.body}`)
+          : errorText(`Water update failed (status ${result.status}): ${result.body}`);
+      },
+    ),
+  );
 }
 
 type UpdateElectricityArgs = ElectricityInput & { propertyId: string };
 type UpdateGasArgs = GasInput & { propertyId: string };
+type UpdateWaterArgs = WaterInput & { propertyId: string };
 
 type UpdatePropertyArgs = {
   propertyId: string;
