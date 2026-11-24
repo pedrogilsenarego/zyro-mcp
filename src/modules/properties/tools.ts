@@ -9,13 +9,16 @@ import {
   type ElectricityInput,
   type GasInput,
   type WaterInput,
+  type InternetInput,
 } from "./api.js";
 import type { ListingsApi } from "../listings/api.js";
 import {
   ELECTRICITY_TARIFF_OPTIONS,
   GAS_TIERS,
   HOUSE_FEATURE_KEYS,
-  WATER_CONTRACT_HOLDERS,
+  CONTRACT_HOLDERS,
+  INTERNET_LOYALTY_MONTHS,
+  INTERNET_PROVIDERS,
 } from "../../generated/contracts.js";
 
 // Shared Zod shape for the create tools (user + admin), minus the owner id the
@@ -495,7 +498,7 @@ ${result.body}`)
         .optional()
         .describe("True when the invoice shows the tarifa familiar / famílias numerosas."),
       holder: z
-        .enum(WATER_CONTRACT_HOLDERS)
+        .enum(CONTRACT_HOLDERS)
         .nullable()
         .optional()
         .describe("Who holds the contract: 'owner', or 'tenant' when the tenant signed their own."),
@@ -531,11 +534,95 @@ ${result.body}`)
       },
     ),
   );
+
+  server.tool(
+    "update_property_internet",
+    "Set the home internet contract of one of the user's properties (the " +
+      "Internet card in the property settings), usually read off the operator's " +
+      "invoice: operator, plan, speed, monthly price, account number, who holds " +
+      "the contract, and the loyalty (fidelização). Since Lei 16/2022 every " +
+      "invoice shows when the loyalty ends and what leaving early costs: pass " +
+      "both as loyaltyEnd and exitCost, with the invoice date as confirmedOn. " +
+      "The app reminds the owner 60 and 30 days before the loyalty ends. This " +
+      "REPLACES the whole internet contract — any field you omit is cleared. " +
+      "The id comes from list_properties.",
+    {
+      propertyId: z.string().min(1).describe("The property's id (UUID)."),
+      provider: z
+        .enum(INTERNET_PROVIDERS)
+        .nullable()
+        .optional()
+        .describe("Operator brand: meo, nos, vodafone, digi, nowo, uzo (MEO), woo (NOS), amigo (Vodafone), or other."),
+      planName: z.string().nullable().optional().describe("Plan name as on the invoice, e.g. 'M3 1Gbps'."),
+      downloadMbps: z.number().int().positive().nullable().optional().describe("Download speed in Mbps."),
+      monthlyPrice: z
+        .number()
+        .nonnegative()
+        .nullable()
+        .optional()
+        .describe("What the invoice charges a month, in €, WITH VAT."),
+      accountNumber: z.string().nullable().optional().describe("Customer or account number from the invoice."),
+      holder: z
+        .enum(CONTRACT_HOLDERS)
+        .nullable()
+        .optional()
+        .describe("Who holds the contract: 'owner', or 'tenant' when the tenant signed their own."),
+      contractStart: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional()
+        .describe("Date the contract (or its last renewal) started, YYYY-MM-DD."),
+      loyaltyMonths: z
+        .number()
+        .int()
+        .refine((n) => (INTERNET_LOYALTY_MONTHS as readonly number[]).includes(n), "0, 6, 12 or 24")
+        .nullable()
+        .optional()
+        .describe("Loyalty length in months: 0, 6, 12 or 24."),
+      loyaltyEnd: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional()
+        .describe("Date the loyalty ends, YYYY-MM-DD, as the invoice states it."),
+      exitCost: z
+        .number()
+        .nonnegative()
+        .nullable()
+        .optional()
+        .describe("Early-termination cost the invoice quotes, in €."),
+      confirmedOn: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
+        .optional()
+        .describe("Date of the invoice the loyalty end and exit cost were read from, YYYY-MM-DD."),
+    },
+    {
+      title: "Update property internet",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    authedHandler(
+      deps,
+      async ({ propertyId, ...input }: UpdateInternetArgs, { token }) => {
+        const result = await api.updateInternet(propertyId, input, token);
+        return result.ok
+          ? text(`Internet for property ${propertyId} updated.
+${result.body}`)
+          : errorText(`Internet update failed (status ${result.status}): ${result.body}`);
+      },
+    ),
+  );
 }
 
 type UpdateElectricityArgs = ElectricityInput & { propertyId: string };
 type UpdateGasArgs = GasInput & { propertyId: string };
 type UpdateWaterArgs = WaterInput & { propertyId: string };
+type UpdateInternetArgs = InternetInput & { propertyId: string };
 
 type UpdatePropertyArgs = {
   propertyId: string;

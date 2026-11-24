@@ -26,11 +26,14 @@ export const ELECTRICITY_TARIFF_OPTIONS = ["simple","bi","tri"] as const;
 export type ElectricityTariffOption = (typeof ELECTRICITY_TARIFF_OPTIONS)[number];
 export const GAS_TIERS = [1,2,3,4] as const;
 export type GasTier = (typeof GAS_TIERS)[number];
-export const WATER_CONTRACT_HOLDERS = ["owner","tenant"] as const;
-export type WaterContractHolder = (typeof WATER_CONTRACT_HOLDERS)[number];
+export const CONTRACT_HOLDERS = ["owner","tenant"] as const;
+export type ContractHolder = (typeof CONTRACT_HOLDERS)[number];
+export const INTERNET_PROVIDERS = ["meo","nos","vodafone","digi","nowo","uzo","woo","amigo","other"] as const;
+export type InternetProvider = (typeof INTERNET_PROVIDERS)[number];
+export const INTERNET_LOYALTY_MONTHS = [0,6,12,24] as const;
 export const EVENT_TYPES = ["lease","labors","tax_imi","condominium","credit","airbnb_reservation","blocked"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
-export const NOTIFICATION_TYPES = ["connection_request","property_share","property_share_accepted","group_invite","subscription_ending","news","system","al_check_in_submitted","listing_auto_deactivated","listing_match","listing_price_change","conversation_unanswered","charge_due","charge_overdue","charge_auto_paid","charge_auto_pay_failed","listing_suggestions","other"] as const;
+export const NOTIFICATION_TYPES = ["connection_request","property_share","property_share_accepted","group_invite","subscription_ending","news","system","al_check_in_submitted","listing_auto_deactivated","listing_match","listing_price_change","conversation_unanswered","charge_due","charge_overdue","charge_auto_paid","charge_auto_pay_failed","listing_suggestions","contract_ending","other"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export type RoomBill = {
