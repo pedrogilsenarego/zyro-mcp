@@ -228,6 +228,7 @@ export type InternetInput = {
   planName?: string | null;
   downloadMbps?: number | null;
   monthlyPrice?: number | null;
+  postLoyaltyPrice?: number | null;
   accountNumber?: string | null;
   holder?: ContractHolder | null;
   contractStart?: string | null;

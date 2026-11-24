@@ -561,6 +561,14 @@ ${result.body}`)
         .nullable()
         .optional()
         .describe("What the invoice charges a month, in €, WITH VAT."),
+      postLoyaltyPrice: z
+        .number()
+        .nonnegative()
+        .nullable()
+        .optional()
+        .describe(
+          "What the bill will charge a month once the loyalty ends, in € WITH VAT: the list prices on the invoice detail minus only the discounts that stay (e-invoice, direct debit), not the loyalty/campaign ones. Pass it when the invoice lists the discounts.",
+        ),
       accountNumber: z.string().nullable().optional().describe("Customer or account number from the invoice."),
       holder: z
         .enum(CONTRACT_HOLDERS)
