@@ -31,6 +31,8 @@ export type ContractHolder = (typeof CONTRACT_HOLDERS)[number];
 export const INTERNET_PROVIDERS = ["meo","nos","vodafone","digi","nowo","uzo","woo","amigo","other"] as const;
 export type InternetProvider = (typeof INTERNET_PROVIDERS)[number];
 export const INTERNET_LOYALTY_MONTHS = [0,6,12,24] as const;
+export const PROPERTY_SETUP_SKIPPABLE = ["gas","condominium","credit"] as const;
+export type PropertySetupSkippable = (typeof PROPERTY_SETUP_SKIPPABLE)[number];
 export const EVENT_TYPES = ["lease","labors","tax_imi","condominium","credit","airbnb_reservation","blocked"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export const NOTIFICATION_TYPES = ["connection_request","property_share","property_share_accepted","group_invite","subscription_ending","news","system","al_check_in_submitted","listing_auto_deactivated","listing_match","listing_price_change","conversation_unanswered","charge_due","charge_overdue","charge_auto_paid","charge_auto_pay_failed","listing_suggestions","contract_ending","other"] as const;
@@ -100,6 +102,8 @@ export type UpdatePropertyInput = {
   parishName?: string;
   municipalityName?: string;
   districtName?: string;
+  // Replaces the whole list of setup checks marked as not applying.
+  setupSkipped?: PropertySetupSkippable[];
 };
 
 // Roles say who someone is; permissions say what they can do. Every gate —
